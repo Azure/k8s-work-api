@@ -44,7 +44,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.16.x
+          go-version: ${{ env.GO_VERSION }}
 
       - name: Check out code into the Go module directory
         uses: actions/checkout@v2
@@ -71,7 +71,7 @@ jobs:
       - name: install Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.16.x
+          go-version: ${{ env.GO_VERSION }}
 
       - name: verify
         run: hack/verify-all.sh -v
@@ -92,7 +92,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.16.x
+          go-version: ${{ env.GO_VERSION }}
 
       - name: Get dependencies
         run: go get -v -t -d ./...
