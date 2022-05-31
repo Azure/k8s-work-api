@@ -34,7 +34,6 @@ import (
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/klog/v2"
-	"k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -150,6 +149,10 @@ func (r *ApplyWorkReconciler) applyManifests(manifests []workv1alpha1.Manifest,
 		} else {
 			var obj *unstructured.Unstructured
 			result.identifier = buildResourceIdentifier(index, rawObj, gvr)
+			if !findWorkReference(rawObj.GetOwnerReferences(), owner) {
+				klog.V(5).InfoS("manifest is not owned by the work-api, will not be applied.", "gvr", gvr, "obj", rawObj.GetName())
+				return results
+			}
 			rawObj.SetOwnerReferences(insertOwnerReference(rawObj.GetOwnerReferences(), owner))
 			observedGeneration := findObservedGenerationOfManifest(result.identifier, manifestConditions)
 			obj, result.updated, result.err = r.applyUnstructured(gvr, rawObj, observedGeneration)
@@ -221,8 +224,12 @@ func (r *ApplyWorkReconciler) applyUnstructured(
 		}
 		// try to use severside apply to be safe
 		actual, err = r.spokeDynamicClient.Resource(gvr).Namespace(workObj.GetNamespace()).
-			Patch(context.TODO(), workObj.GetName(), types.ApplyPatchType, newData,
-				metav1.PatchOptions{Force: pointer.Bool(true), FieldManager: "work-api agent"})
+			Patch(context.TODO(), workObj.GetName(), types.ApplyPatchType, newData, metav1.PatchOptions{FieldManager: "work-api"})
+		//whoever set the fieldmanager (Friendly way to avoid conflicts between different controllers) concurrency control
+		// Everyon controller minds their own business, but there could be other controllers watching the same resource
+		// Concurrency control. Force
+		// Somewhere in the kubernetes, may contain what happens during the patch.
+		// Deployment inspect the metadata patch
 		if err != nil {
 			klog.ErrorS(err, "work object patched failed", "gvr", gvr, "obj", workObj.GetName())
 			workObj.SetResourceVersion(curObj.GetResourceVersion())
@@ -289,15 +296,7 @@ func mergeMapOverrideWithDst(src, dst map[string]string) map[string]string {
 
 // insertOwnerReference inserts a new owner
 func insertOwnerReference(owners []metav1.OwnerReference, newOwner metav1.OwnerReference) []metav1.OwnerReference {
-	found := false
-	for _, owner := range owners {
-		if owner.APIVersion == newOwner.APIVersion && owner.Kind == newOwner.Kind &&
-			owner.Name == newOwner.Name && owner.UID == newOwner.UID {
-			found = true
-			break
-		}
-	}
-	if found {
+	if findWorkReference(owners, newOwner) {
 		return owners
 	} else {
 		return append(owners, newOwner)
@@ -309,6 +308,15 @@ func mergeOwnerReference(owners, newOwners []metav1.OwnerReference) []metav1.Own
 		owners = insertOwnerReference(owners, newOwner)
 	}
 	return owners
+}
+
+func findWorkReference(owners []metav1.OwnerReference, workOwner metav1.OwnerReference) bool {
+	for _, owner := range owners {
+		if owner.APIVersion == workOwner.APIVersion && owner.Kind == workOwner.Kind && owner.Name == workOwner.Name {
+			return true
+		}
+	}
+	return false
 }
 
 // findManifestConditionByIdentifier return a ManifestCondition by identifier
