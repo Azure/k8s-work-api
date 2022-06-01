@@ -149,13 +149,9 @@ func (r *ApplyWorkReconciler) applyManifests(manifests []workv1alpha1.Manifest,
 		} else {
 			var obj *unstructured.Unstructured
 			result.identifier = buildResourceIdentifier(index, rawObj, gvr)
-			if !findWorkReference(rawObj.GetOwnerReferences(), owner) {
-				klog.V(5).InfoS("manifest is not owned by the work-api, will not be applied.", "gvr", gvr, "obj", rawObj.GetName())
-				return results
-			}
 			rawObj.SetOwnerReferences(insertOwnerReference(rawObj.GetOwnerReferences(), owner))
 			observedGeneration := findObservedGenerationOfManifest(result.identifier, manifestConditions)
-			obj, result.updated, result.err = r.applyUnstructured(gvr, rawObj, observedGeneration)
+			obj, result.updated, result.err = r.applyUnstructured(gvr, rawObj, observedGeneration, owner)
 			if result.err == nil {
 				result.generation = obj.GetGeneration()
 				klog.V(5).InfoS("applied an unstructrued object", "gvr", gvr, "obj", obj.GetName(), "new observedGeneration", result.generation)
@@ -185,7 +181,8 @@ func (r *ApplyWorkReconciler) decodeUnstructured(manifest workv1alpha1.Manifest)
 func (r *ApplyWorkReconciler) applyUnstructured(
 	gvr schema.GroupVersionResource,
 	workObj *unstructured.Unstructured,
-	observedGeneration int64) (*unstructured.Unstructured, bool, error) {
+	observedGeneration int64,
+	owner metav1.OwnerReference) (*unstructured.Unstructured, bool, error) {
 
 	err := setSpecHashAnnotation(workObj)
 	if err != nil {
@@ -202,6 +199,17 @@ func (r *ApplyWorkReconciler) applyUnstructured(
 		return actual, true, err
 	}
 	if err != nil {
+		return nil, false, err
+	}
+	found := false
+	for _, curOwner := range curObj.GetOwnerReferences() {
+		if curOwner.APIVersion == owner.APIVersion && curOwner.Kind == owner.Kind && curOwner.Name == owner.Name && curOwner.UID == owner.UID {
+			found = true
+		}
+	}
+	if !found {
+		err = fmt.Errorf("this object is not owned by the work-api")
+		klog.V(5).InfoS("This object is not owned by the work-api.", "gvr", gvr, "obj", workObj.GetName(), "err", err)
 		return nil, false, err
 	}
 
@@ -296,7 +304,14 @@ func mergeMapOverrideWithDst(src, dst map[string]string) map[string]string {
 
 // insertOwnerReference inserts a new owner
 func insertOwnerReference(owners []metav1.OwnerReference, newOwner metav1.OwnerReference) []metav1.OwnerReference {
-	if findWorkReference(owners, newOwner) {
+	found := false
+	for _, owner := range owners {
+		if owner.APIVersion == newOwner.APIVersion && owner.Kind == newOwner.Kind && owner.Name == owner.Name {
+			found = true
+			break
+		}
+	}
+	if found {
 		return owners
 	} else {
 		return append(owners, newOwner)
@@ -308,15 +323,6 @@ func mergeOwnerReference(owners, newOwners []metav1.OwnerReference) []metav1.Own
 		owners = insertOwnerReference(owners, newOwner)
 	}
 	return owners
-}
-
-func findWorkReference(owners []metav1.OwnerReference, workOwner metav1.OwnerReference) bool {
-	for _, owner := range owners {
-		if owner.APIVersion == workOwner.APIVersion && owner.Kind == workOwner.Kind && owner.Name == workOwner.Name {
-			return true
-		}
-	}
-	return false
 }
 
 // findManifestConditionByIdentifier return a ManifestCondition by identifier
