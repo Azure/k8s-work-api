@@ -3,13 +3,11 @@ name: Go
 on:
   push:
     branches:
-      - master
-      - release-*
-  workflow_dispatch: {}
+      - "**"
   pull_request:
     branches:
-      - main
-      - release-*
+      - '**'
+  workflow_dispatch: {}
 
 env:
   # Common versions
