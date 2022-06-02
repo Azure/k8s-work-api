@@ -12,7 +12,7 @@ defaults:
 
 env:
   # Common versions
-  GO_VERSION: '1.17.x'
+  GO_VERSION: 1.17.x
   GO_PATH: '/home/runner/work/work-api/work-api/go'
 
 jobs:
