@@ -14,6 +14,7 @@ Fixes #
 I have:
 
 - [ ] Read and followed Caravel's [Code of conduct](https://github.com/Azure/k8s-work-api/blob/master/code-of-conduct.md).
+- [ ] Run `make reviewable` to ensure this PR is ready for review.
 
 ### How has this code been tested
 
