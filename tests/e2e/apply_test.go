@@ -73,12 +73,19 @@ var _ = ginkgo.Describe("Apply Work", func() {
 			deplList, err := spokeKubeClient.AppsV1().Deployments("default").List(context.Background(), metav1.ListOptions{})
 			println(deplList.Size())
 			println(deplList.Items)
+			println("========================dep=====")
+			for _, item := range deplList.Items {
+				println(item.Name)
+			}
 			println(err)
 			println("1")
 
 			fldeplList, err := spokeKubeClient.AppsV1().Deployments("fleet-system").List(context.Background(), metav1.ListOptions{})
 			println(fldeplList.Size())
-			println(deplList.Items)
+			println(fldeplList.Items)
+			for _, item := range fldeplList.Items {
+				println(item.Name)
+			}
 			println(err)
 			println("2")
 
