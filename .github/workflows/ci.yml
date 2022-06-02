@@ -33,28 +33,6 @@ jobs:
           do_not_skip: '["workflow_dispatch", "schedule", "push"]'
           concurrent_skipping: false
 
-  golangci:
-    name: lint
-    runs-on: ubuntu-latest
-    steps:
-      - name: Set up Go
-        uses: actions/setup-go@v2
-        with:
-          go-version: ${{ env.GO_VERSION }}
-
-      - name: Check out code into the Go module directory
-        uses: actions/checkout@v2
-
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v2
-        with:
-          # the version of golangci-lint.
-          version: v1.45.2
-
-          # show only new issues if it's a pull request.
-          only-new-issues: false
-          args: --timeout 3m0s
-
   verify:
     name: verify
     runs-on: ubuntu-latest
