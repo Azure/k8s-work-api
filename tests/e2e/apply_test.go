@@ -70,6 +70,16 @@ var _ = ginkgo.Describe("Apply Work", func() {
 			_, err := hubWorkClient.MulticlusterV1alpha1().Works(workNamespace).Create(context.Background(), work, metav1.CreateOptions{})
 			gomega.Expect(err).ToNot(gomega.HaveOccurred())
 
+			deplList, err := spokeKubeClient.AppsV1().Deployments("default").List(context.Background(), metav1.ListOptions{})
+			println(deplList)
+			println(err)
+			println("1")
+
+			fldeplList, err := spokeKubeClient.AppsV1().Deployments("fleet-system").List(context.Background(), metav1.ListOptions{})
+			println(fldeplList)
+			println(err)
+			println("2")
+
 			gomega.Eventually(func() error {
 				_, err := spokeKubeClient.AppsV1().Deployments("default").Get(context.Background(), "test-nginx", metav1.GetOptions{})
 				if err != nil {
