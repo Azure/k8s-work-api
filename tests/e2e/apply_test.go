@@ -71,12 +71,14 @@ var _ = ginkgo.Describe("Apply Work", func() {
 			gomega.Expect(err).ToNot(gomega.HaveOccurred())
 
 			deplList, err := spokeKubeClient.AppsV1().Deployments("default").List(context.Background(), metav1.ListOptions{})
-			println(deplList)
+			println(deplList.Size())
+			println(deplList.Items)
 			println(err)
 			println("1")
 
 			fldeplList, err := spokeKubeClient.AppsV1().Deployments("fleet-system").List(context.Background(), metav1.ListOptions{})
-			println(fldeplList)
+			println(fldeplList.Size())
+			println(deplList.Items)
 			println(err)
 			println("2")
 
