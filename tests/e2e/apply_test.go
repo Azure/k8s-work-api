@@ -71,7 +71,6 @@ var _ = ginkgo.Describe("Apply Work", func() {
 			gomega.Expect(err).ToNot(gomega.HaveOccurred())
 
 			list, err := spokeKubeClient.AppsV1().Deployments("default").List(context.Background(), metav1.ListOptions{})
-			println("=================")
 			for _, item := range list.Items {
 				println(item.Name)
 			}
