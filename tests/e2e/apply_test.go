@@ -70,24 +70,9 @@ var _ = ginkgo.Describe("Apply Work", func() {
 			_, err := hubWorkClient.MulticlusterV1alpha1().Works(workNamespace).Create(context.Background(), work, metav1.CreateOptions{})
 			gomega.Expect(err).ToNot(gomega.HaveOccurred())
 
-			deplList, err := spokeKubeClient.AppsV1().Deployments("default").List(context.Background(), metav1.ListOptions{})
-			println(deplList.Size())
-			println(deplList.Items)
-			println("========================dep=====")
-			for _, item := range deplList.Items {
-				println(item.Name)
-			}
-			println(err)
-			println("1")
-
-			fldeplList, err := spokeKubeClient.AppsV1().Deployments("fleet-system").List(context.Background(), metav1.ListOptions{})
-			println(fldeplList.Size())
-			println(fldeplList.Items)
-			for _, item := range fldeplList.Items {
-				println(item.Name)
-			}
-			println(err)
-			println("2")
+			obj, err := hubWorkClient.MulticlusterV1alpha1().Works(workNamespace).Get(context.Background(), "test-work", metav1.GetOptions{})
+			println(obj.Name)
+			println(obj.Spec.Workload.Manifests)
 
 			gomega.Eventually(func() error {
 				_, err := spokeKubeClient.AppsV1().Deployments("default").Get(context.Background(), "test-nginx", metav1.GetOptions{})
