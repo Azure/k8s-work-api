@@ -229,11 +229,7 @@ func (r *ApplyWorkReconciler) applyUnstructured(
 		actual, err = r.spokeDynamicClient.Resource(gvr).Namespace(workObj.GetNamespace()).
 			Patch(context.TODO(), workObj.GetName(), types.ApplyPatchType, newData,
 				metav1.PatchOptions{Force: pointer.Bool(true), FieldManager: "work-api agent"})
-		//whoever set the fieldmanager (Friendly way to avoid conflicts between different controllers) concurrency control
-		// Everyon controller minds their own business, but there could be other controllers watching the same resource
-		// Concurrency control. Force
-		// Somewhere in the kubernetes, may contain what happens during the patch.
-		// Deployment inspect the metadata patch
+
 		if err != nil {
 			klog.ErrorS(err, "work object patched failed", "gvr", gvr, "obj", workObj.GetName())
 			workObj.SetResourceVersion(curObj.GetResourceVersion())

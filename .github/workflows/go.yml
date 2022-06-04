@@ -1,19 +1,14 @@
 name: Go
 
 on:
-  push:
-    branches:
-      - master
-      - release-*
-  workflow_dispatch: {}
   pull_request:
     branches:
-      - main
-      - release-*
+      - '**'
+  workflow_dispatch: {}
 
 env:
   # Common versions
-  GO_VERSION: '1.17'
+  GO_VERSION: '1.17.x'
   GOLANGCI_VERSION: 'v1.46'
 
 jobs:
@@ -87,4 +82,4 @@ jobs:
         uses: golangci/golangci-lint-action@v2
         with:
           version: ${{ env.GOLANGCI_VERSION }}
-        timeout-minutes: 10
+        timeout-minutes: 3
