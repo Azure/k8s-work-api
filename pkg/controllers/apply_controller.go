@@ -295,6 +295,7 @@ func mergeMapOverrideWithDst(src, dst map[string]string) map[string]string {
 }
 
 func findOwnerReference(owners []metav1.OwnerReference, target metav1.OwnerReference) bool {
+	// TODO: Move to a util directory or find an existing library.
 	for _, owner := range owners {
 		if owner.APIVersion == target.APIVersion && owner.Kind == target.Kind && owner.Name == target.Name && owner.UID == target.UID {
 			return true
