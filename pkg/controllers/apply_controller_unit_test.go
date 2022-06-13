@@ -110,18 +110,6 @@ func TestApplyManifest(t *testing.T) {
 	failDynamicClient.PrependReactor("get", "*", func(action testing2.Action) (handled bool, ret runtime.Object, err error) {
 		return true, nil, errors.New("Failed to apply an unstructrued object")
 	})
-	identifierNotConditions := append([]workv1alpha1.ManifestCondition{}, workv1alpha1.ManifestCondition{
-		Identifier: workv1alpha1.ResourceIdentifier{
-			Ordinal:   0,
-			Group:     testDeployment.GroupVersionKind().Group,
-			Version:   testDeployment.GroupVersionKind().Version,
-			Kind:      testDeployment.GroupVersionKind().Kind,
-			Resource:  testGvr.Resource,
-			Namespace: getRandomString(),
-			Name:      getRandomString(),
-		},
-		Conditions: nil,
-	})
 
 	testCases := map[string]struct {
 		reconciler ApplyWorkReconciler
@@ -212,8 +200,19 @@ func TestApplyManifest(t *testing.T) {
 				log:                logr.Logger{},
 				restMapper:         testMapper{},
 			},
-			ml:         append([]workv1alpha1.Manifest{}, testManifest),
-			mcl:        append(identifierNotConditions),
+			ml: append([]workv1alpha1.Manifest{}, testManifest),
+			mcl: append([]workv1alpha1.ManifestCondition{}, workv1alpha1.ManifestCondition{
+				Identifier: workv1alpha1.ResourceIdentifier{
+					Ordinal:   0,
+					Group:     testDeployment.GroupVersionKind().Group,
+					Version:   testDeployment.GroupVersionKind().Version,
+					Kind:      testDeployment.GroupVersionKind().Kind,
+					Resource:  testGvr.Resource,
+					Namespace: getRandomString(),
+					Name:      getRandomString(),
+				},
+				Conditions: nil,
+			}),
 			generation: 0,
 			wantGvr:    expectedGvr,
 			wantErr:    nil,
