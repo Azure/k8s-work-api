@@ -18,7 +18,6 @@ package controllers
 
 import (
 	"context"
-	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	workv1alpha1 "sigs.k8s.io/work-api/pkg/apis/v1alpha1"
@@ -33,7 +32,6 @@ import (
 )
 
 var _ = Describe("Garbage Collected", func() {
-	var appliedWorkName string
 	var resourceName string
 	var resourceNamespace string
 	var workName string
@@ -50,7 +48,6 @@ var _ = Describe("Garbage Collected", func() {
 		workNamespace = "wns-" + utilrand.String(5)
 		resourceName = "rn-" + utilrand.String(5)
 		resourceNamespace = "rns" + utilrand.String(5)
-		appliedWorkName = workName
 
 		ns := &corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
@@ -114,23 +111,19 @@ var _ = Describe("Garbage Collected", func() {
 	Context("A Work object with manifests has been marked for deletion.", func() {
 		// Mark the existing work object for deletion.
 		BeforeEach(func() {
-			work, err := workClient.MulticlusterV1alpha1().Works(workNamespace).Get(context.Background(), workName, metav1.GetOptions{})
-			Expect(err).ToNot(HaveOccurred())
-
-			controllerutil.AddFinalizer(work, workFinalizer)
-			work.Status.Conditions = []metav1.Condition{}
-			_, err = workClient.MulticlusterV1alpha1().Works(workNamespace).UpdateStatus(context.Background(), work, metav1.UpdateOptions{})
-			Expect(err).ToNot(HaveOccurred())
-
-			err = workClient.MulticlusterV1alpha1().Works(workNamespace).Delete(context.Background(), workName, metav1.DeleteOptions{})
+			err := workClient.MulticlusterV1alpha1().Works(workNamespace).Delete(context.Background(), workName, metav1.DeleteOptions{})
 			Expect(err).ToNot(HaveOccurred())
 		})
 
-		It("Should have deleted the AppliedWork object.", func() {
+		It("Should have the finalizer removed from the Work object.", func() {
 			Eventually(func() bool {
-				_, err := workClient.MulticlusterV1alpha1().AppliedWorks().Get(context.Background(), appliedWorkName, metav1.GetOptions{})
+				workObj, err := workClient.MulticlusterV1alpha1().Works(workNamespace).Get(context.Background(), workName, metav1.GetOptions{})
+				Expect(err).ToNot(HaveOccurred())
+				if controllerutil.ContainsFinalizer(workObj, workFinalizer) {
+					return false
+				}
 
-				return errors.IsNotFound(err)
+				return true
 			}, timeout, interval).Should(BeTrue())
 		})
 
