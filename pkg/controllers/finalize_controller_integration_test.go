@@ -19,7 +19,6 @@ package controllers
 import (
 	"context"
 	"k8s.io/apimachinery/pkg/runtime"
-	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	workv1alpha1 "sigs.k8s.io/work-api/pkg/apis/v1alpha1"
 	"time"
 
@@ -42,19 +41,28 @@ var _ = Describe("Garbage Collected", func() {
 
 	// BeforeEach test ensure:
 	// #1 - A namespace exists for the Work to reside within.
-	// #2 - A manifest of some type should be within the Work object.
+	// #2 - A namespace exists for where the manifest object would be created within.
+	// #3 - A manifest of some type should be within the Work object.
 	BeforeEach(func() {
 		workName = "wn-" + utilrand.String(5)
 		workNamespace = "wns-" + utilrand.String(5)
 		resourceName = "rn-" + utilrand.String(5)
 		resourceNamespace = "rns" + utilrand.String(5)
 
-		ns := &corev1.Namespace{
+		wns := &corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: workNamespace,
 			},
 		}
-		_, err := k8sClient.CoreV1().Namespaces().Create(context.Background(), ns, metav1.CreateOptions{})
+		_, err := k8sClient.CoreV1().Namespaces().Create(context.Background(), wns, metav1.CreateOptions{})
+		Expect(err).ToNot(HaveOccurred())
+
+		rns := &corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: resourceNamespace,
+			},
+		}
+		_, err = k8sClient.CoreV1().Namespaces().Create(context.Background(), rns, metav1.CreateOptions{})
 		Expect(err).ToNot(HaveOccurred())
 
 		// Create the Work object with some type of Manifest resource.
@@ -101,32 +109,13 @@ var _ = Describe("Garbage Collected", func() {
 
 	Context("A Work object with manifests has been created.", func() {
 		It("Should have created an AppliedWork object", func() {
-			Eventually(func() error {
-				_, err := workClient.MulticlusterV1alpha1().AppliedWorks().Get(context.Background(), workName, metav1.GetOptions{})
-				return err
-			}, timeout, interval).Should(Succeed())
-		})
-	})
-
-	Context("A Work object with manifests has been marked for deletion.", func() {
-		// Mark the existing work object for deletion.
-		BeforeEach(func() {
-			err := workClient.MulticlusterV1alpha1().Works(workNamespace).Delete(context.Background(), workName, metav1.DeleteOptions{})
-			Expect(err).ToNot(HaveOccurred())
-		})
-
-		It("Should have the finalizer removed from the Work object.", func() {
 			Eventually(func() bool {
-				workObj, err := workClient.MulticlusterV1alpha1().Works(workNamespace).Get(context.Background(), workName, metav1.GetOptions{})
-				Expect(err).ToNot(HaveOccurred())
-				if controllerutil.ContainsFinalizer(workObj, workFinalizer) {
-					return false
+				appliedWorkObject, err2 := workClient.MulticlusterV1alpha1().AppliedWorks().Get(context.Background(), workName, metav1.GetOptions{})
+				if err2 == nil {
+					return appliedWorkObject.Spec.WorkName == workName
 				}
-
-				return true
+				return false
 			}, timeout, interval).Should(BeTrue())
 		})
-
 	})
-
 })
