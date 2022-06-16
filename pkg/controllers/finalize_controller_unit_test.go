@@ -2,15 +2,17 @@ package controllers
 
 import (
 	"context"
+	"testing"
+
 	"github.com/crossplane/crossplane-runtime/pkg/test"
 	"github.com/stretchr/testify/assert"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	utilrand "k8s.io/apimachinery/pkg/util/rand"
+	metaV1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/rand"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
+
 	workv1alpha1 "sigs.k8s.io/work-api/pkg/apis/v1alpha1"
 	"sigs.k8s.io/work-api/pkg/client/clientset/versioned/fake"
-	"testing"
 )
 
 // TestWrapper is a struct used to encapsulate the mocked dependencies needed to simulate a specific flow in logic.
@@ -49,7 +51,7 @@ func TestGarbageCollectAppliedWork(t *testing.T) {
 
 func generateWork(workName string, workNamespace string) *workv1alpha1.Work {
 	return &workv1alpha1.Work{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: metaV1.ObjectMeta{
 			Name:      workName,
 			Namespace: workNamespace,
 		},
@@ -63,7 +65,7 @@ func generateWork(workName string, workNamespace string) *workv1alpha1.Work {
 
 func generateAppliedWork(workName string) *workv1alpha1.AppliedWork {
 	return &workv1alpha1.AppliedWork{
-		ObjectMeta: metav1.ObjectMeta{
+		ObjectMeta: metaV1.ObjectMeta{
 			Name: workName,
 		},
 		Spec: workv1alpha1.AppliedWorkSpec{
@@ -73,8 +75,8 @@ func generateAppliedWork(workName string) *workv1alpha1.AppliedWork {
 }
 
 func generateTestWrapper() *TestWrapper {
-	workName := utilrand.String(5)
-	workNameSpace := utilrand.String(5)
+	workName := rand.String(5)
+	workNameSpace := rand.String(5)
 
 	mockAppliedWork := generateAppliedWork(workName)
 	mockWork := generateWork(workName, workNameSpace)
