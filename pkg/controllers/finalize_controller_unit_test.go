@@ -39,11 +39,10 @@ func TestGarbageCollectAppliedWork(t *testing.T) {
 	}
 	for testName, tt := range tests {
 		t.Run(testName, func(t *testing.T) {
-			result, err := tt.r.garbageCollectAppliedWork(context.Background(), tt.tw.mockWork)
+			_, err := tt.r.garbageCollectAppliedWork(context.Background(), tt.tw.mockWork)
 
-			assert.False(t, controllerutil.ContainsFinalizer(tt.tw.mockWork, workFinalizer))
-			assert.Equal(t, ctrl.Result{}, result)
-			assert.NoError(t, err)
+			assert.False(t, controllerutil.ContainsFinalizer(tt.tw.mockWork, workFinalizer), "The Work object still contains a finalizer, it should not.")
+			assert.NoError(t, err, "An error occurred but none was expected.")
 		})
 	}
 }
