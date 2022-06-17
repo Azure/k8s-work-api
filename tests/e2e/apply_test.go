@@ -36,7 +36,7 @@ const (
 var _ = ginkgo.Describe("Apply Work", func() {
 
 	workName := "work-" + utilrand.String(5)
-	workNamespace := "default"
+	workNamespace = "default"
 
 	ginkgo.Context("Create a service and deployment", func() {
 		ginkgo.It("Should create work successfully", func() {
