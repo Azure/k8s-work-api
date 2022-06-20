@@ -128,6 +128,26 @@ var _ = ginkgo.Describe("Apply Work", func() {
 			}, eventuallyTimeout, eventuallyInterval).ShouldNot(gomega.HaveOccurred())
 		})
 	})
+	ginkgo.Context("Deleting a Work resource from the Hub", func() {
+		ginkgo.It("should delete the work resource and the related AppliedResource", func() {
+			err := hubWorkClient.MulticlusterV1alpha1().Works(workNamespace).Delete(context.Background(), workName, metav1.DeleteOptions{})
+			gomega.Expect(err).ToNot(gomega.HaveOccurred())
+
+			// Ensure the work resource was deleted from the Hub.
+			gomega.Eventually(func() error {
+				_, err = hubWorkClient.MulticlusterV1alpha1().Works(workNamespace).Get(context.Background(), workName, metav1.GetOptions{})
+
+				return err
+			}, eventuallyTimeout, eventuallyInterval).Should(gomega.HaveOccurred())
+			// Ensure the AppliedWork resource was deleted from the spoke.
+			gomega.Eventually(func() error {
+				_, err = spokeWorkClient.MulticlusterV1alpha1().AppliedWorks().Get(context.Background(), workName, metav1.GetOptions{})
+
+				return err
+			}, eventuallyTimeout, eventuallyInterval).Should(gomega.HaveOccurred())
+		})
+
+	})
 })
 
 func addManifestsToWorkSpec(manifestFileRelativePaths []string, workSpec *workapi.WorkSpec) {
