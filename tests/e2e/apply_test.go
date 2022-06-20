@@ -24,6 +24,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilrand "k8s.io/apimachinery/pkg/util/rand"
 	workapi "sigs.k8s.io/work-api/pkg/apis/v1alpha1"
 )
@@ -129,8 +130,14 @@ var _ = ginkgo.Describe("Apply Work", func() {
 		})
 	})
 	ginkgo.Context("Deleting a Work resource from the Hub", func() {
-		ginkgo.It("should delete the work resource and the related AppliedResource", func() {
-			err := hubWorkClient.MulticlusterV1alpha1().Works(workNamespace).Delete(context.Background(), workName, metav1.DeleteOptions{})
+		ginkgo.It("should delete: Work resource, AppliedWork resource, and the actual resources created by the Work.spec", func() {
+
+			// Get AppliedWork(s) so we can verify garbage collection.
+			aw, err := spokeWorkClient.MulticlusterV1alpha1().AppliedWorks().Get(context.Background(), workName, metav1.GetOptions{})
+			gomega.Expect(aw).ToNot(gomega.BeNil())
+			gomega.Expect(err).ToNot(gomega.HaveOccurred())
+
+			err = hubWorkClient.MulticlusterV1alpha1().Works(workNamespace).Delete(context.Background(), workName, metav1.DeleteOptions{})
 			gomega.Expect(err).ToNot(gomega.HaveOccurred())
 
 			// Ensure the work resource was deleted from the Hub.
@@ -139,12 +146,34 @@ var _ = ginkgo.Describe("Apply Work", func() {
 
 				return err
 			}, eventuallyTimeout, eventuallyInterval).Should(gomega.HaveOccurred())
+
 			// Ensure the AppliedWork resource was deleted from the spoke.
 			gomega.Eventually(func() error {
 				_, err = spokeWorkClient.MulticlusterV1alpha1().AppliedWorks().Get(context.Background(), workName, metav1.GetOptions{})
 
 				return err
 			}, eventuallyTimeout, eventuallyInterval).Should(gomega.HaveOccurred())
+
+			// Ensure the resources are garbage collection on the spoke.
+			gomega.Eventually(func() bool {
+				garbageCollectionComplete := true
+				for _, resourceMeta := range aw.Status.AppliedResources {
+					gvr := schema.GroupVersionResource{
+						Group:    resourceMeta.Group,
+						Version:  resourceMeta.Version,
+						Resource: resourceMeta.Resource,
+					}
+					_, err := spokeDynamicClient.Resource(gvr).Get(context.Background(), resourceMeta.Name, metav1.GetOptions{})
+
+					// ToDo - Replace all HTTP calls with proper err code expectation.
+					if err == nil {
+						garbageCollectionComplete = false
+						break
+					}
+				}
+
+				return garbageCollectionComplete
+			}, eventuallyTimeout, eventuallyInterval).Should(gomega.BeTrue())
 		})
 
 	})
