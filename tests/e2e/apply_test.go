@@ -19,6 +19,7 @@ package e2e
 import (
 	"context"
 	"fmt"
+
 	"github.com/onsi/ginkgo"
 	"github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -26,6 +27,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilrand "k8s.io/apimachinery/pkg/util/rand"
+
 	workapi "sigs.k8s.io/work-api/pkg/apis/v1alpha1"
 )
 
