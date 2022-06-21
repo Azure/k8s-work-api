@@ -87,6 +87,4 @@ var _ = ginkgo.BeforeSuite(func() {
 
 	spokeWorkClient, err = workclientset.NewForConfig(restConfig)
 	gomega.Expect(err).ToNot(gomega.HaveOccurred())
-
-	gomega.Expect(err).ToNot(gomega.HaveOccurred())
 })
