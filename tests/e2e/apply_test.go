@@ -141,6 +141,7 @@ var _ = ginkgo.Describe("Apply Work", func() {
 			// Note: The index of 0 can be trusted only due to being in a testing environment.
 			cmOwner := configMap.OwnerReferences[0]
 			appliedWork, err := spokeWorkClient.MulticlusterV1alpha1().AppliedWorks().Get(context.Background(), cmOwner.Name, metav1.GetOptions{})
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			awResources := appliedWork.Status.AppliedResources
 
 			// Locate the AppliedResourceMeta by GVK+R details.
@@ -161,6 +162,7 @@ var _ = ginkgo.Describe("Apply Work", func() {
 
 			// Grab the Work resource that the manifest for the AppliedResource exists within, then extract via the ordinal.
 			work, err := hubWorkClient.MulticlusterV1alpha1().Works(workNamespace).Get(context.Background(), cmOwner.Name, metav1.GetOptions{})
+			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
 			resourceManifest := work.Spec.Workload.Manifests[appliedResourceMeta.Ordinal]
 
 			// Unmarshal the data into a struct, modify and then update it.
