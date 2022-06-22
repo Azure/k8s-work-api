@@ -197,38 +197,6 @@ var _ = ginkgo.Describe("Apply Work", func() {
 			// that can only be trusted within a controlled test environment.
 			// We should be getting the ordinal from the AppliedWork.Status.AppliedResources and match by GVK.
 			// Because the status of the AppliedWork resource is not yet updated by the controllers. We will get the manifest directly as we know the ordinal.
-
-			// START - Correct Method
-
-			//// Give the spoke cluster time to create the map.
-			//time.Sleep(5 * time.Second)
-			//configMap, err := spokeKubeClient.CoreV1().ConfigMaps("default").Get(context.Background(), "test-configmap", metav1.GetOptions{})
-			//gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-
-			//cmOwner := configMap.OwnerReferences[0]
-			//appliedWork, err := spokeWorkClient.MulticlusterV1alpha1().AppliedWorks().Get(context.Background(), cmOwner.Name, metav1.GetOptions{})
-			//gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			//awResources := appliedWork.Status.AppliedResources
-			//
-			//
-			//// Locate the AppliedResourceMeta by GVK+R details.
-			//gvk := configMap.GroupVersionKind()
-			//var matchIndex int
-			//for i, resourceMeta := range awResources {
-			//	if resourceMeta.Group == gvk.Group &&
-			//		resourceMeta.Version == gvk.Version &&
-			//		resourceMeta.Kind == gvk.Kind &&
-			//		resourceMeta.Namespace == configMap.Namespace &&
-			//		resourceMeta.Name == configMap.Name {
-			//		matchIndex = i
-			//		break
-			//	}
-			//}
-			//
-			//appliedResourceMeta := awResources[matchIndex]
-			// END - Correct Method
-
-			// Hack Method
 			// Sleep needed to allow spoke work controller to provision the resource (ConfigMap).
 			time.Sleep(2 * time.Second)
 			createdWork, err = hubWorkClient.MulticlusterV1alpha1().Works(createdWork.Namespace).Get(context.Background(), createdWork.Name, metav1.GetOptions{})
