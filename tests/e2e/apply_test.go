@@ -18,7 +18,6 @@ package e2e
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"github.com/onsi/ginkgo"
 	"github.com/onsi/gomega"
@@ -27,10 +26,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/json"
 	utilrand "k8s.io/apimachinery/pkg/util/rand"
-	"time"
-
 	workapi "sigs.k8s.io/work-api/pkg/apis/v1alpha1"
+	"time"
 )
 
 const (
@@ -44,8 +43,8 @@ var _ = ginkgo.Describe("Apply Work", func() {
 		"testmanifests/test-service.yaml",
 	}
 
-	ginkgo.Context("Create a service and deployment", func() {
-		ginkgo.It("Should create work successfully", func() {
+	ginkgo.Context("Work created on the hub.", func() {
+		ginkgo.It("Should create work successfully.", func() {
 			// Set
 			createdWork, err := createWork(defaultManifestFiles)
 			gomega.Expect(err).ToNot(gomega.HaveOccurred())
@@ -77,7 +76,10 @@ var _ = ginkgo.Describe("Apply Work", func() {
 			err = deleteWork(createdWork)
 			gomega.Expect(err).ToNot(gomega.HaveOccurred())
 		})
-		ginkgo.It("Should create new resources successfully.", func() {
+	})
+
+	ginkgo.Context("Work created on the hub, then a new manifest added to the existing Work resource.", func() {
+		ginkgo.It("Should create work initial resources, and then additional resources.", func() {
 			// Set
 			createdWork, err := createWork(defaultManifestFiles)
 			gomega.Expect(err).ToNot(gomega.HaveOccurred())
@@ -124,8 +126,9 @@ var _ = ginkgo.Describe("Apply Work", func() {
 			gomega.Expect(err).ToNot(gomega.HaveOccurred())
 		})
 	})
-	ginkgo.Context("Deleting a Work resource from the Hub", func() {
-		ginkgo.It("should delete: Work resource, AppliedWork resource, and the actual resources created by the Work.spec", func() {
+
+	ginkgo.Context("Work created on the hub, then deleted.", func() {
+		ginkgo.It("Should delete all resources on hub and spoke clusters.", func() {
 			// Set
 			createdWork, err := createWork(defaultManifestFiles)
 			gomega.Expect(err).ToNot(gomega.HaveOccurred())
@@ -176,8 +179,8 @@ var _ = ginkgo.Describe("Apply Work", func() {
 			}, eventuallyTimeout, eventuallyInterval).Should(gomega.BeTrue())
 		})
 	})
-	ginkgo.Context("Modify a field within a manifest", func() {
-		ginkgo.It("Should reapply the manifest", func() {
+	ginkgo.Context("Work created on the Hub, then a manifest is modified on the Hub.", func() {
+		ginkgo.It("Should reapply the manifest.", func() {
 			// Setup
 			configMapManifest := []string{
 				"testmanifests/test-configmap.yaml",
@@ -186,38 +189,51 @@ var _ = ginkgo.Describe("Apply Work", func() {
 			createdWork, err := createWork(configMapManifest)
 			gomega.Expect(err).ToNot(gomega.HaveOccurred())
 
-			// Give the spoke cluster time to create the map.
-			time.Sleep(5 * time.Second)
-			configMap, err := spokeKubeClient.CoreV1().ConfigMaps("default").Get(context.Background(), "test-configmap", metav1.GetOptions{})
-			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-
 			// Retrieve the owner reference for the existing resource, then retrieve the work spec from the hub using its owner reference.
 			// Note: The index of 0 can be trusted only due to being in a testing environment.
-			cmOwner := configMap.OwnerReferences[0]
-			appliedWork, err := spokeWorkClient.MulticlusterV1alpha1().AppliedWorks().Get(context.Background(), cmOwner.Name, metav1.GetOptions{})
-			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			awResources := appliedWork.Status.AppliedResources
 
-			// Locate the AppliedResourceMeta by GVK+R details.
-			gvk := configMap.GroupVersionKind()
-			var matchIndex int
-			for i, resourceMeta := range awResources {
-				if resourceMeta.Group == gvk.Group &&
-					resourceMeta.Version == gvk.Version &&
-					resourceMeta.Kind == gvk.Kind &&
-					resourceMeta.Namespace == configMap.Namespace &&
-					resourceMeta.Name == configMap.Name {
-					matchIndex = i
-					break
-				}
-			}
+			// We need to retrieve the manifest by ordinal from the Work resource within the Hub.
+			// However, the until the AppliedWork controller is implemented / used, we will need to retrieve it using a method
+			// that can only be trusted within a controlled test environment.
+			// We should be getting the ordinal from the AppliedWork.Status.AppliedResources and match by GVK.
+			// Because the status of the AppliedWork resource is not yet updated by the controllers. We will get the manifest directly as we know the ordinal.
 
-			appliedResourceMeta := awResources[matchIndex]
+			// START - Correct Method
 
-			// Grab the Work resource that the manifest for the AppliedResource exists within, then extract via the ordinal.
-			work, err := hubWorkClient.MulticlusterV1alpha1().Works(createdWork.Namespace).Get(context.Background(), cmOwner.Name, metav1.GetOptions{})
-			gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
-			resourceManifest := work.Spec.Workload.Manifests[appliedResourceMeta.Ordinal]
+			//// Give the spoke cluster time to create the map.
+			//time.Sleep(5 * time.Second)
+			//configMap, err := spokeKubeClient.CoreV1().ConfigMaps("default").Get(context.Background(), "test-configmap", metav1.GetOptions{})
+			//gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+
+			//cmOwner := configMap.OwnerReferences[0]
+			//appliedWork, err := spokeWorkClient.MulticlusterV1alpha1().AppliedWorks().Get(context.Background(), cmOwner.Name, metav1.GetOptions{})
+			//gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+			//awResources := appliedWork.Status.AppliedResources
+			//
+			//
+			//// Locate the AppliedResourceMeta by GVK+R details.
+			//gvk := configMap.GroupVersionKind()
+			//var matchIndex int
+			//for i, resourceMeta := range awResources {
+			//	if resourceMeta.Group == gvk.Group &&
+			//		resourceMeta.Version == gvk.Version &&
+			//		resourceMeta.Kind == gvk.Kind &&
+			//		resourceMeta.Namespace == configMap.Namespace &&
+			//		resourceMeta.Name == configMap.Name {
+			//		matchIndex = i
+			//		break
+			//	}
+			//}
+			//
+			//appliedResourceMeta := awResources[matchIndex]
+			// END - Correct Method
+
+			// Hack Method
+			// Sleep needed to allow spoke work controller to provision the resource (ConfigMap).
+			time.Sleep(2 * time.Second)
+			work, err := hubWorkClient.MulticlusterV1alpha1().Works(createdWork.Namespace).Get(context.Background(), createdWork.Name, metav1.GetOptions{})
+			manifestOrdinal := work.Status.ManifestConditions[0].Identifier.Ordinal
+			resourceManifest := work.Spec.Workload.Manifests[manifestOrdinal]
 
 			// Unmarshal the data into a struct, modify and then update it.
 			var cm v1.ConfigMap
@@ -234,7 +250,7 @@ var _ = ginkgo.Describe("Apply Work", func() {
 			gomega.Expect(merr).ToNot(gomega.HaveOccurred())
 			manifest := workapi.Manifest{}
 			manifest.Raw = rawManifest
-			work.Spec.Workload.Manifests[appliedResourceMeta.Ordinal] = manifest
+			work.Spec.Workload.Manifests[manifestOrdinal] = manifest
 
 			// Update the Work resource.
 			_, updateErr := hubWorkClient.MulticlusterV1alpha1().Works(createdWork.Namespace).Update(context.Background(), work, metav1.UpdateOptions{})
@@ -275,7 +291,6 @@ func createWork(manifestFiles []string) (*workapi.Work, error) {
 	createdWork, err := hubWorkClient.MulticlusterV1alpha1().Works(work.Namespace).Create(context.Background(), work, metav1.CreateOptions{})
 	return createdWork, err
 }
-
 func deleteWork(work *workapi.Work) error {
 	err := hubWorkClient.MulticlusterV1alpha1().Works(work.Namespace).Delete(context.Background(), work.Name, metav1.DeleteOptions{})
 	return err
