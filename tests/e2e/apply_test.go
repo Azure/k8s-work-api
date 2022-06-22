@@ -19,7 +19,6 @@ package e2e
 import (
 	"context"
 	"fmt"
-
 	"github.com/onsi/ginkgo"
 	"github.com/onsi/gomega"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -67,9 +66,9 @@ var _ = ginkgo.Describe("Apply Work", func() {
 			}, eventuallyTimeout, eventuallyInterval).ShouldNot(gomega.HaveOccurred())
 
 			// Reset
-			deleteWork(createdWork)
+			err = deleteWork(createdWork)
+			gomega.Expect(err).ToNot(gomega.HaveOccurred())
 		})
-
 		ginkgo.It("Should create new resources successfully.", func() {
 			// Set
 			createdWork, err := createDefaultWork()
@@ -113,30 +112,36 @@ var _ = ginkgo.Describe("Apply Work", func() {
 			}, eventuallyTimeout, eventuallyInterval).ShouldNot(gomega.HaveOccurred())
 
 			// Reset
-			deleteWork(work)
+			err = deleteWork(createdWork)
+			gomega.Expect(err).ToNot(gomega.HaveOccurred())
 		})
 	})
 	ginkgo.Context("Deleting a Work resource from the Hub", func() {
 		ginkgo.It("should delete: Work resource, AppliedWork resource, and the actual resources created by the Work.spec", func() {
-
-			// Get AppliedWork(s) so we can verify garbage collection.
-			aw, err := spokeWorkClient.MulticlusterV1alpha1().AppliedWorks().Get(context.Background(), workName, metav1.GetOptions{})
-			gomega.Expect(aw).ToNot(gomega.BeNil())
+			// Set
+			createdWork, err := createDefaultWork()
 			gomega.Expect(err).ToNot(gomega.HaveOccurred())
 
-			err = hubWorkClient.MulticlusterV1alpha1().Works(workNamespace).Delete(context.Background(), workName, metav1.DeleteOptions{})
+			// Get AppliedWork(s) so we can verify garbage collection.
+			var appliedWorks *workapi.AppliedWork
+			gomega.Eventually(func() error {
+				appliedWorks, err = spokeWorkClient.MulticlusterV1alpha1().AppliedWorks().Get(context.Background(), createdWork.Name, metav1.GetOptions{})
+				return err
+			}, eventuallyTimeout, eventuallyInterval).ShouldNot(gomega.HaveOccurred())
+
+			err = deleteWork(createdWork)
 			gomega.Expect(err).ToNot(gomega.HaveOccurred())
 
 			// Ensure the work resource was deleted from the Hub.
 			gomega.Eventually(func() error {
-				_, err = hubWorkClient.MulticlusterV1alpha1().Works(workNamespace).Get(context.Background(), workName, metav1.GetOptions{})
+				_, err = hubWorkClient.MulticlusterV1alpha1().Works(createdWork.Namespace).Get(context.Background(), createdWork.Name, metav1.GetOptions{})
 
 				return err
 			}, eventuallyTimeout, eventuallyInterval).Should(gomega.HaveOccurred())
 
 			// Ensure the AppliedWork resource was deleted from the spoke.
 			gomega.Eventually(func() error {
-				_, err = spokeWorkClient.MulticlusterV1alpha1().AppliedWorks().Get(context.Background(), workName, metav1.GetOptions{})
+				_, err = spokeWorkClient.MulticlusterV1alpha1().AppliedWorks().Get(context.Background(), createdWork.Name, metav1.GetOptions{})
 
 				return err
 			}, eventuallyTimeout, eventuallyInterval).Should(gomega.HaveOccurred())
@@ -144,7 +149,7 @@ var _ = ginkgo.Describe("Apply Work", func() {
 			// Ensure the resources are garbage collection on the spoke.
 			gomega.Eventually(func() bool {
 				garbageCollectionComplete := true
-				for _, resourceMeta := range aw.Status.AppliedResources {
+				for _, resourceMeta := range appliedWorks.Status.AppliedResources {
 					gvr := schema.GroupVersionResource{
 						Group:    resourceMeta.Group,
 						Version:  resourceMeta.Version,
@@ -192,9 +197,9 @@ func createDefaultWork() (*workapi.Work, error) {
 	return createdWork, err
 }
 
-func deleteWork(work *workapi.Work) {
+func deleteWork(work *workapi.Work) error {
 	err := hubWorkClient.MulticlusterV1alpha1().Works(work.Namespace).Delete(context.Background(), work.Name, metav1.DeleteOptions{})
-	gomega.Expect(err).ShouldNot(gomega.HaveOccurred())
+	return err
 }
 
 func addManifestsToWorkSpec(manifestFileRelativePaths []string, workSpec *workapi.WorkSpec) {
