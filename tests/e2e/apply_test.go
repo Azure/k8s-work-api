@@ -231,9 +231,10 @@ var _ = ginkgo.Describe("Apply Work", func() {
 			// Hack Method
 			// Sleep needed to allow spoke work controller to provision the resource (ConfigMap).
 			time.Sleep(2 * time.Second)
-			work, err := hubWorkClient.MulticlusterV1alpha1().Works(createdWork.Namespace).Get(context.Background(), createdWork.Name, metav1.GetOptions{})
-			manifestOrdinal := work.Status.ManifestConditions[0].Identifier.Ordinal
-			resourceManifest := work.Spec.Workload.Manifests[manifestOrdinal]
+			createdWork, err = hubWorkClient.MulticlusterV1alpha1().Works(createdWork.Namespace).Get(context.Background(), createdWork.Name, metav1.GetOptions{})
+			gomega.Expect(err).ToNot(gomega.HaveOccurred())
+			manifestOrdinal := createdWork.Status.ManifestConditions[0].Identifier.Ordinal
+			resourceManifest := createdWork.Spec.Workload.Manifests[manifestOrdinal]
 
 			// Unmarshal the data into a struct, modify and then update it.
 			var cm v1.ConfigMap
@@ -250,10 +251,10 @@ var _ = ginkgo.Describe("Apply Work", func() {
 			gomega.Expect(merr).ToNot(gomega.HaveOccurred())
 			manifest := workapi.Manifest{}
 			manifest.Raw = rawManifest
-			work.Spec.Workload.Manifests[manifestOrdinal] = manifest
+			createdWork.Spec.Workload.Manifests[manifestOrdinal] = manifest
 
 			// Update the Work resource.
-			_, updateErr := hubWorkClient.MulticlusterV1alpha1().Works(createdWork.Namespace).Update(context.Background(), work, metav1.UpdateOptions{})
+			_, updateErr := hubWorkClient.MulticlusterV1alpha1().Works(createdWork.Namespace).Update(context.Background(), createdWork, metav1.UpdateOptions{})
 			gomega.Expect(updateErr).ToNot(gomega.HaveOccurred())
 
 			// Vet
