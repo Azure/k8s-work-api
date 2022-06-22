@@ -38,11 +38,10 @@ import (
 )
 
 var (
-	workNamespace      string
 	restConfig         *rest.Config
+	hubWorkClient      workclientset.Interface
 	spokeKubeClient    kubernetes.Interface
 	spokeDynamicClient dynamic.Interface
-	hubWorkClient      workclientset.Interface
 	spokeWorkClient    workclientset.Interface
 
 	//go:embed testmanifests
@@ -76,13 +75,13 @@ var _ = ginkgo.BeforeSuite(func() {
 	restConfig, err = clientcmd.BuildConfigFromFlags("", kubeconfig)
 	gomega.Expect(err).ToNot(gomega.HaveOccurred())
 
-	spokeKubeClient, err = kubernetes.NewForConfig(restConfig)
+	hubWorkClient, err = workclientset.NewForConfig(restConfig)
 	gomega.Expect(err).ToNot(gomega.HaveOccurred())
 
 	spokeDynamicClient, err = dynamic.NewForConfig(restConfig)
 	gomega.Expect(err).ToNot(gomega.HaveOccurred())
 
-	hubWorkClient, err = workclientset.NewForConfig(restConfig)
+	spokeKubeClient, err = kubernetes.NewForConfig(restConfig)
 	gomega.Expect(err).ToNot(gomega.HaveOccurred())
 
 	spokeWorkClient, err = workclientset.NewForConfig(restConfig)
