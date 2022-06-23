@@ -262,6 +262,14 @@ var _ = ginkgo.Describe("Apply Work", func() {
 				_, err := spokeKubeClient.CoreV1().Namespaces().Get(context.Background(), "test-namespace", metav1.GetOptions{})
 				return err
 			}, eventuallyTimeout, eventuallyInterval).ShouldNot(gomega.HaveOccurred())
+			gomega.Eventually(func() error {
+				_, err := spokeKubeClient.CoreV1().ConfigMaps("default").Get(context.Background(), "test-configmap", metav1.GetOptions{})
+				return err
+			}, eventuallyTimeout, eventuallyInterval).ShouldNot(gomega.HaveOccurred())
+			gomega.Eventually(func() error {
+				_, err := spokeKubeClient.CoreV1().ConfigMaps("test-namespace").Get(context.Background(), "test-configmap", metav1.GetOptions{})
+				return err
+			}, eventuallyTimeout, eventuallyInterval).ShouldNot(gomega.HaveOccurred())
 
 			// Reset
 			err = deleteWork(createdWork)
