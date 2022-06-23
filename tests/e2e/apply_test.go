@@ -237,7 +237,7 @@ var _ = ginkgo.Describe("Apply Work", func() {
 		})
 	})
 	ginkgo.Context("Work created on the hub, with manifests which should be applied into different namespaces.", func() {
-		ginkgo.It("Should reapply the manifest.", func() {
+		ginkgo.It("Should apply manifests in two different namespaces.", func() {
 			// Setup
 			namespace := &v1.Namespace{
 				ObjectMeta: metav1.ObjectMeta{
