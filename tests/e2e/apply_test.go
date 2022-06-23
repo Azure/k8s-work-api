@@ -77,7 +77,6 @@ var _ = ginkgo.Describe("Apply Work", func() {
 			gomega.Expect(err).ToNot(gomega.HaveOccurred())
 		})
 	})
-
 	ginkgo.Context("Work created on the hub, then a new manifest added to the existing Work resource.", func() {
 		ginkgo.It("Should create work initial resources, and then additional resources.", func() {
 			// Set
@@ -126,7 +125,6 @@ var _ = ginkgo.Describe("Apply Work", func() {
 			gomega.Expect(err).ToNot(gomega.HaveOccurred())
 		})
 	})
-
 	ginkgo.Context("Work created on the hub, then deleted.", func() {
 		ginkgo.It("Should delete all resources on hub and spoke clusters.", func() {
 			// Set
@@ -179,7 +177,7 @@ var _ = ginkgo.Describe("Apply Work", func() {
 			}, eventuallyTimeout, eventuallyInterval).Should(gomega.BeTrue())
 		})
 	})
-	ginkgo.Context("Work created on the Hub, then a manifest is modified on the Hub.", func() {
+	ginkgo.Context("Work created on the hub, then a manifest is modified on the hub.", func() {
 		ginkgo.It("Should reapply the manifest.", func() {
 			// Setup
 			configMapManifest := []string{
@@ -235,6 +233,40 @@ var _ = ginkgo.Describe("Apply Work", func() {
 
 			// Reset
 			err = deleteWork(createdWork)
+			gomega.Expect(err).ToNot(gomega.HaveOccurred())
+		})
+	})
+	ginkgo.Context("Work created on the hub, with manifests which should be applied into different namespaces.", func() {
+		ginkgo.It("Should reapply the manifest.", func() {
+			// Setup
+			namespace := &v1.Namespace{
+				ObjectMeta: metav1.ObjectMeta{
+					Name: "test-namespace",
+				},
+			}
+
+			_, err := spokeKubeClient.CoreV1().Namespaces().Create(context.Background(), namespace, metav1.CreateOptions{})
+			gomega.Expect(err).ToNot(gomega.HaveOccurred())
+
+			manifests := []string{
+				"testmanifests/test-configmap.yaml",
+				"testmanifests/test-configmap2.yaml",
+			}
+
+			createdWork, err := createWork(manifests)
+			gomega.Expect(createdWork).ToNot(gomega.BeNil())
+			gomega.Expect(err).ToNot(gomega.HaveOccurred())
+
+			// Vet
+			gomega.Eventually(func() error {
+				_, err := spokeKubeClient.CoreV1().Namespaces().Get(context.Background(), "test-namespace", metav1.GetOptions{})
+				return err
+			}, eventuallyTimeout, eventuallyInterval).ShouldNot(gomega.HaveOccurred())
+
+			// Reset
+			err = deleteWork(createdWork)
+			gomega.Expect(err).ToNot(gomega.HaveOccurred())
+			err = spokeKubeClient.CoreV1().Namespaces().Delete(context.Background(), namespace.Name, metav1.DeleteOptions{})
 			gomega.Expect(err).ToNot(gomega.HaveOccurred())
 		})
 	})
