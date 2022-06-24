@@ -52,7 +52,7 @@ var (
 		manifestMetaName = []string{"test-nginx", "test-nginx", "test-configmap"} //Todo - Unmarshal raw file bytes into JSON, extract key / values programmatically.
 		manifestMetaNamespaces = []string{"default", "default", "default"}        //Todo - Unmarshal raw file bytes into JSON, extract key / values programmatically.
 
-		// The Manifests' ordinal must be respected; some tests reference them by ordinal.
+		// The Manifests' ordinal must be respected; some tests reference by ordinal.
 		manifests = []string{
 			"testmanifests/test-deployment.yaml",
 			"testmanifests/test-service.yaml",
@@ -72,17 +72,16 @@ var (
 		})
 
 		Describe("created on the Hub", func() {
-			// ToDo - It would be better to have context of N manifest, and let the type programmatically determined.
-			// This will be done by unmarshalling the loaded manifests.
+			// Todo - It would be better to have context of N manifest, and let the type be programmatically determined.
 			Context("with a Service & Deployment & Configmap manifest", func() {
-				It("should have a Work resource in the hub cluster", func() {
+				It("should have a Work resource in the hub", func() {
 					gomega.Eventually(func() error {
-						_, err := hubWorkClient.MulticlusterV1alpha1().Works(createdWork.Namespace).Get(context.Background(), createdWork.Name, metav1.GetOptions{})
+						_, err := retrieveWork(createdWork.Namespace, createdWork.Name)
 
 						return err
 					}, eventuallyTimeout, eventuallyInterval).ShouldNot(gomega.HaveOccurred())
 				})
-				It("should have an AppliedWork resource in the spoke cluster ", func() {
+				It("should have an AppliedWork resource in the spoke ", func() {
 					gomega.Eventually(func() error {
 						_, err := spokeWorkClient.MulticlusterV1alpha1().AppliedWorks().Get(context.Background(), createdWork.Name, metav1.GetOptions{})
 
@@ -114,6 +113,7 @@ var (
 		Describe("updated on the Hub", func() {
 			Context("with a new manifest", func() {
 				// Create then namespace for which the new manifest will be created within.
+				// Todo - utilize Work to ensure is applied.
 				namespace := &v1.Namespace{
 					ObjectMeta: metav1.ObjectMeta{
 						Name: "test-namespace",
@@ -127,24 +127,22 @@ var (
 					var work *workapi.Work
 					var err error
 
-					By("ensuring the namespace specified within the manifest already exists on the spoke cluster")
+					By("ensuring the namespace specified within the manifest already exists on the spoke")
 					gomega.Eventually(func() error {
 						_, err = spokeKubeClient.CoreV1().Namespaces().Create(context.Background(), namespace, metav1.CreateOptions{})
 						return err
 					}, eventuallyTimeout, eventuallyInterval).ShouldNot(gomega.HaveOccurred())
 
-					// Retrieve the existing Work so a new manifest can be added to it.
-					By("getting the existing Work resource on the hub cluster")
+					By("getting the existing Work resource on the hub")
 					gomega.Eventually(func() error {
-						work, err = hubWorkClient.MulticlusterV1alpha1().Works(createdWork.Namespace).Get(context.Background(), createdWork.Name, metav1.GetOptions{})
+						work, err = retrieveWork(createdWork.Namespace, createdWork.Name)
 						return err
 					}, eventuallyTimeout, eventuallyInterval).ShouldNot(gomega.HaveOccurred())
 
-					// Add the ConfigMap manifest to the Work resource, and update it.
-					By("adding the new manifest to the Work resource and updating it on the hub cluster")
+					By("adding the new manifest to the Work resource and updating it on the hub")
 					gomega.Eventually(func() error {
 						addManifestsToWorkSpec([]string{manifests[2]}, &work.Spec)
-						_, err = hubWorkClient.MulticlusterV1alpha1().Works(work.Namespace).Update(context.Background(), work, metav1.UpdateOptions{})
+						_, err = updateWork(work)
 						return err
 					}, eventuallyTimeout, eventuallyInterval).ShouldNot(gomega.HaveOccurred())
 				})
@@ -187,9 +185,8 @@ var (
 					updatedManifest.Raw = rawManifest
 					createdWork.Spec.Workload.Manifests[2] = updatedManifest
 
-					// Update the Work resource.
-					By("updating a manifest specification within the existing Work on the hub cluster")
-					createdWork, updateError = hubWorkClient.MulticlusterV1alpha1().Works(createdWork.Namespace).Update(context.Background(), createdWork, metav1.UpdateOptions{})
+					By("updating a manifest specification within the existing Work on the hub")
+					createdWork, updateError = updateWork(createdWork)
 					gomega.Expect(updateError).ToNot(gomega.HaveOccurred())
 				})
 
@@ -208,7 +205,7 @@ var (
 			BeforeEach(func() {
 				time.Sleep(2 * time.Second) // Give time for AppliedWork to be created.
 				// Grab the AppliedWork, so resource garbage collection can be verified.
-				appliedWork, getError = spokeWorkClient.MulticlusterV1alpha1().AppliedWorks().Get(context.Background(), createdWork.Name, metav1.GetOptions{})
+				appliedWork, getError = retrieveAppliedWork(createdWork.Name)
 				gomega.Expect(getError).ToNot(gomega.HaveOccurred())
 
 				deleteError = safeDeleteWork(createdWork)
@@ -217,7 +214,7 @@ var (
 
 			It("should have deleted the Work resource on the hub", func() {
 				gomega.Eventually(func() error {
-					_, err := hubWorkClient.MulticlusterV1alpha1().Works(workNamespace).Get(context.Background(), workName, metav1.GetOptions{})
+					_, err := retrieveWork(workNamespace, workName)
 
 					return err
 				}, eventuallyTimeout, eventuallyInterval).Should(gomega.HaveOccurred())
@@ -244,7 +241,7 @@ var (
 			})
 			It("should have deleted the AppliedWork resource from the spoke", func() {
 				gomega.Eventually(func() error {
-					_, err := spokeWorkClient.MulticlusterV1alpha1().AppliedWorks().Get(context.Background(), createdWork.Name, metav1.GetOptions{})
+					_, err := retrieveAppliedWork(createdWork.Name)
 
 					return err
 				}, eventuallyTimeout, eventuallyInterval).Should(gomega.HaveOccurred())
@@ -254,6 +251,20 @@ var (
 	})
 )
 
+func addManifestsToWorkSpec(manifestFileRelativePaths []string, workSpec *workapi.WorkSpec) {
+	for _, file := range manifestFileRelativePaths {
+		fileRaw, err := testManifestFiles.ReadFile(file)
+		gomega.Expect(err).ToNot(gomega.HaveOccurred())
+
+		obj, _, err := genericCodec.Decode(fileRaw, nil, nil)
+		gomega.Expect(err).ToNot(gomega.HaveOccurred())
+
+		workSpec.Workload.Manifests = append(
+			workSpec.Workload.Manifests, workapi.Manifest{
+				RawExtension: runtime.RawExtension{Object: obj},
+			})
+	}
+}
 func createWork(workName string, workNamespace string, manifestFiles []string) (*workapi.Work, error) {
 	work := &workapi.Work{
 		ObjectMeta: metav1.ObjectMeta{
@@ -272,6 +283,12 @@ func createWork(workName string, workNamespace string, manifestFiles []string) (
 
 	return createdWork, createError
 }
+func retrieveAppliedWork(resourceName string) (*workapi.AppliedWork, error) {
+	return spokeWorkClient.MulticlusterV1alpha1().AppliedWorks().Get(context.Background(), resourceName, metav1.GetOptions{})
+}
+func retrieveWork(workNamespace string, workName string) (*workapi.Work, error) {
+	return hubWorkClient.MulticlusterV1alpha1().Works(workNamespace).Get(context.Background(), workName, metav1.GetOptions{})
+}
 func safeDeleteWork(work *workapi.Work) error {
 	time.Sleep(1 * time.Second) // ToDo - Replace with proper gomega eventually.
 	_, getError = hubWorkClient.MulticlusterV1alpha1().Works(work.Namespace).Get(context.Background(), work.Name, metav1.GetOptions{})
@@ -281,17 +298,6 @@ func safeDeleteWork(work *workapi.Work) error {
 
 	return getError
 }
-func addManifestsToWorkSpec(manifestFileRelativePaths []string, workSpec *workapi.WorkSpec) {
-	for _, file := range manifestFileRelativePaths {
-		fileRaw, err := testManifestFiles.ReadFile(file)
-		gomega.Expect(err).ToNot(gomega.HaveOccurred())
-
-		obj, _, err := genericCodec.Decode(fileRaw, nil, nil)
-		gomega.Expect(err).ToNot(gomega.HaveOccurred())
-
-		workSpec.Workload.Manifests = append(
-			workSpec.Workload.Manifests, workapi.Manifest{
-				RawExtension: runtime.RawExtension{Object: obj},
-			})
-	}
+func updateWork(work *workapi.Work) (*workapi.Work, error) {
+	return hubWorkClient.MulticlusterV1alpha1().Works(work.Namespace).Update(context.Background(), work, metav1.UpdateOptions{})
 }
