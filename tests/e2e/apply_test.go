@@ -52,7 +52,7 @@ var (
 		manifestMetaName = []string{"test-nginx", "test-nginx", "test-configmap"} //Todo - Unmarshal raw file bytes into JSON, extract key / values programmatically.
 		manifestMetaNamespaces = []string{"default", "default", "default"}        //Todo - Unmarshal raw file bytes into JSON, extract key / values programmatically.
 
-		// The manifest's cardinality must be respected; some tests reference them by ordinal.
+		// The Manifests' ordinal must be respected; some tests reference them by ordinal.
 		manifests = []string{
 			"testmanifests/test-deployment.yaml",
 			"testmanifests/test-service.yaml",
