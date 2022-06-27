@@ -94,7 +94,6 @@ func Start(ctx context.Context, hubCfg, spokeCfg *rest.Config, setupLog logr.Log
 		return err
 	}
 
-	// TODO: Add event recorder
 	if err = (&FinalizeWorkReconciler{
 		client:      hubMgr.GetClient(),
 		recorder:    hubMgr.GetEventRecorderFor("finalize_controller"),
