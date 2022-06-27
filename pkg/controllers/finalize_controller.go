@@ -127,6 +127,7 @@ func (r *FinalizeWorkReconciler) garbageCollectAppliedWork(ctx context.Context, 
 		controllerutil.RemoveFinalizer(work, workFinalizer)
 		r.recorder.Event(work, corev1.EventTypeNormal, eventReasonFinalizerRemoved, "Work resource's finalizer removed: "+workFinalizer)
 	}
+
 	return ctrl.Result{}, r.client.Update(ctx, work, &client.UpdateOptions{})
 }
 
