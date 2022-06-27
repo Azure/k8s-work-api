@@ -2,7 +2,7 @@ package controllers
 
 import (
 	"context"
-	"k8s.io/client-go/tools/record"
+	"sigs.k8s.io/work-api/pkg/utils"
 	"testing"
 
 	"github.com/crossplane/crossplane-runtime/pkg/test"
@@ -85,7 +85,7 @@ func generateTestWrapper() *TestWrapper {
 	return &TestWrapper{
 		mockReconciler: &FinalizeWorkReconciler{
 			client:   test.NewMockClient(),
-			recorder: record.NewFakeRecorder(1),
+			recorder: utils.NewFakeRecorder(2),
 			spokeClient: fake.NewSimpleClientset(
 				mockWork,
 				mockAppliedWork,
