@@ -20,8 +20,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
-
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -49,6 +47,10 @@ func init() {
 	utilruntime.Must(v1alpha1.AddToScheme(scheme))
 }
 
+func init() {
+	klog.InitFlags(nil)
+}
+
 func main() {
 	var metricsAddr string
 	var enableLeaderElection bool
@@ -71,10 +73,9 @@ func main() {
 	flag.StringVar(&workNamespace, "work-namespace", "", "Namespace to watch for work.")
 	flag.IntVar(&concurrentReconciles, "concurrency", 5, "max work reconciler concurrency")
 
-	// Init klog flags
-	klog.InitFlags(nil)
-
 	flag.Parse()
+
+	defer klog.Flush()
 
 	opts := ctrl.Options{
 		Scheme:                 scheme,
@@ -99,12 +100,12 @@ func main() {
 	}
 	if err != nil {
 		setupLog.Error(err, "error reading kubeconfig to connect to hub")
-		os.Exit(1)
+		klog.FlushAndExit(klog.ExitFlushTimeout, 1)
 	}
 
 	if err := controllers.Start(ctrl.SetupSignalHandler(), hubConfig, ctrl.GetConfigOrDie(), setupLog, opts); err != nil {
 		setupLog.Error(err, "problem running controllers")
-		os.Exit(1)
+		klog.FlushAndExit(klog.ExitFlushTimeout, 1)
 	}
 }
 
