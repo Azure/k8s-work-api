@@ -1,0 +1,55 @@
+{{- if and .Values.admissionWebhooks.certManager.enabled -}}
+
+# The following manifests contain a self-signed issuer CR and a certificate CR.
+# More document can be found at https://docs.cert-manager.io
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: {{ template "workapi.fullname" . }}-self-signed-issuer
+spec:
+  selfSigned: {}
+
+---
+# Generate a CA Certificate used to sign certificates for the webhook
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ template "workapi.fullname" . }}-root-cert
+spec:
+  secretName: {{ template "workapi.fullname" . }}-root-cert
+  duration: 43800h # 5y
+  revisionHistoryLimit: {{ .Values.admissionWebhooks.certManager.revisionHistoryLimit }}
+  issuerRef:
+    name: {{ template "workapi.fullname" . }}-self-signed-issuer
+  commonName: "ca.webhook.workapi"
+  isCA: true
+
+---
+# Create an Issuer that uses the above generated CA certificate to issue certs
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: {{ template "workapi.fullname" . }}-root-issuer
+  namespace: {{ .Release.Namespace }}
+spec:
+  ca:
+    secretName: {{ template "workapi.fullname" . }}-root-cert
+
+---
+# generate a serving certificate for the apiservices to use
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ template "workapi.fullname" . }}-admission
+  namespace: {{ .Release.Namespace }}
+spec:
+  secretName: {{ template "workapi.fullname" . }}-admission
+  duration: 8760h # 1y
+  revisionHistoryLimit: {{ .Values.admissionWebhooks.certManager.revisionHistoryLimit }}
+  issuerRef:
+    name: {{ template "workapi.fullname" . }}-root-issuer
+  dnsNames:
+    - {{ template "workapi.name" . }}-webhook.{{ .Release.Namespace }}.svc
+    - {{ template "workapi.name" . }}-webhook.{{ .Release.Namespace }}.svc.cluster.local
+
+  {{- end }}

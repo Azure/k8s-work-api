@@ -1,0 +1,22 @@
+# Default values for WorkAPI.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+## @section Work-API core parameters
+
+## @param imageRegistry Image registry
+imageRegistry: ""
+## @param image.repository Image repository
+## @param image.tag Image tag
+## @param image.pullPolicy Image pull policy
+image:
+  repository: ghcr.io/azure/k8s-work-api
+  tag: latest
+  pullPolicy: Always
+
+
+## @param webhookService.type WorkAPI webhook service type
+## @param webhookService.port WorkAPI webhook service port
+webhookService:
+  type: ClusterIP
+  port: 9443

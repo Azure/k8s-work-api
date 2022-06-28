@@ -32,9 +32,8 @@ webhooks:
           - UPDATE
         resources:
           - works
-        scope: Namespaced
+        scope: ∗
     admissionReviewVersions:
-      - v1beta1
-      - v1
+      - v1alpha1
     timeoutSeconds: 5
   {{- end -}}

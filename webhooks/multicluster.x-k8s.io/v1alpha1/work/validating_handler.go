@@ -3,7 +3,6 @@ package work
 import (
 	"context"
 	"net/http"
-
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
@@ -14,9 +13,6 @@ const (
 	validWorkRequest = "Valid Work request."
 )
 
-// +kubebuilder:webhook:path=/validate-v1-pod,mutating=false,failurePolicy=fail,groups="",resources=pods,verbs=create;update,versions=v1,name=vpod.kb.io
-
-// Validates Works
 type WorkValidator struct {
 	Client  client.Client
 	decoder *admission.Decoder
