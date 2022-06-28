@@ -45,9 +45,6 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(v1alpha1.AddToScheme(scheme))
-}
-
-func init() {
 	klog.InitFlags(nil)
 }
 
