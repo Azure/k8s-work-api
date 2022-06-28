@@ -109,7 +109,7 @@ func Start(ctx context.Context, hubCfg, spokeCfg *rest.Config, setupLog logr.Log
 	klog.Info("setting up webhook server")
 	webhookServer := hubMgr.GetWebhookServer()
 
-	webhookServer.Register("/validating-multicluster-x-k8s-io-v1alpha1-works", &webhook.Admission{Handler: &work.WIPworkValidator{Client: hubMgr.GetClient()}})
+	webhookServer.Register("/validating-multicluster-x-k8s-io-v1alpha1-works", &webhook.Admission{Handler: &work.WorkValidator{Client: hubMgr.GetClient()}})
 
 	klog.Info("starting hub manager")
 	defer klog.Info("shutting down hub manager")
