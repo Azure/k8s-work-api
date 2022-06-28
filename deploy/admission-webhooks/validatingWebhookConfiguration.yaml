@@ -1,0 +1,40 @@
+{{- if .Values.admissionWebhooks.enabled -}}
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: {{ template "workapi.fullname" . }}-admission
+  namespace: {{ .Release.Namespace }}
+  {{- if .Values.admissionWebhooks.certManager.enabled }}
+  annotations:
+    cert-manager.io/inject-ca-from: {{ printf "%s/%s-root-cert" .Release.Namespace (include "workapi.fullname" .) | quote }}
+  {{- end }}
+webhooks:
+  - clientConfig:
+      caBundle: TODO
+      service:
+        name: {{ template "workapi.name" . }}-webhook
+        namespace: {{ .Release.Namespace }}
+        path: /validating-multicluster-x-k8s-io-v1alpha1-works
+    {{- if .Values.admissionWebhooks.patch.enabled  }}
+    failurePolicy: Ignore
+    {{- else }}
+    failurePolicy: {{ .Values.admissionWebhooks.failurePolicy }}
+    {{- end }}
+    name: validating.multicluster.x-k8s.io.v1alpha1.works
+    sideEffects: None
+    rules:
+      - apiGroups:
+          - multicluster.x-k8s.io
+        apiVersions:
+          - v1alpha1
+        operations:
+          - CREATE
+          - UPDATE
+        resources:
+          - works
+        scope: Namespaced
+    admissionReviewVersions:
+      - v1beta1
+      - v1
+    timeoutSeconds: 5
+  {{- end -}}

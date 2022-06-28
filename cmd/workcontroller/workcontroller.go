@@ -20,8 +20,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"os"
-
 	"github.com/pkg/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -31,9 +29,9 @@ import (
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/klog/v2"
+	"os"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
-
 	"sigs.k8s.io/work-api/pkg/apis/v1alpha1"
 	"sigs.k8s.io/work-api/pkg/controllers"
 	"sigs.k8s.io/work-api/version"
@@ -56,6 +54,7 @@ func main() {
 	var hubsecret string
 	var workNamespace string
 	var certDir string
+	var webhookEnabled bool
 	var webhookPort int
 	var healthAddr string
 	var concurrentReconciles int
@@ -63,7 +62,8 @@ func main() {
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
 		"Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
-	flag.IntVar(&webhookPort, "webhook-port", 9443, "admission webhook listen address")
+	flag.BoolVar(&webhookEnabled, "webhook-enabled", false, "Enable admission webhook")
+	flag.IntVar(&webhookPort, "webhook-port", 9443, "Admission webhook listen address")
 	flag.StringVar(&certDir, "webhook-cert-dir", "/k8s-webhook-server/serving-certs", "Admission webhook cert/key dir.")
 	flag.StringVar(&healthAddr, "health-addr", ":9440", "The address the health endpoint binds to.")
 	flag.StringVar(&hubkubeconfig, "hub-kubeconfig", "", "Paths to a kubeconfig connect to hub.")

@@ -19,6 +19,8 @@ package controllers
 import (
 	"context"
 	"os"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/work-api/webhooks/multicluster.x-k8s.io/v1alpha1/work"
 
 	"github.com/go-logr/logr"
 	"k8s.io/client-go/dynamic"
@@ -102,6 +104,12 @@ func Start(ctx context.Context, hubCfg, spokeCfg *rest.Config, setupLog logr.Log
 		setupLog.Error(err, "unable to create controller", "controller", "WorkFinalize")
 		return err
 	}
+
+	// Setup webhooks
+	klog.Info("setting up webhook server")
+	webhookServer := hubMgr.GetWebhookServer()
+
+	webhookServer.Register("/validating-multicluster-x-k8s-io-v1alpha1-works", &webhook.Admission{Handler: &work.WIPworkValidator{Client: hubMgr.GetClient()}})
 
 	klog.Info("starting hub manager")
 	defer klog.Info("shutting down hub manager")
