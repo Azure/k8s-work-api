@@ -5,12 +5,12 @@
 ## @section Work-API core parameters
 
 ## @param imageRegistry Image registry
-imageRegistry: ""
+imageRegistry: "ghcr.io"
 ## @param image.repository Image repository
 ## @param image.tag Image tag
 ## @param image.pullPolicy Image pull policy
 image:
-  repository: ghcr.io/azure/k8s-work-api
+  repository: azure/k8s-work-api
   tag: latest
   pullPolicy: Always
 
