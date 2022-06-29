@@ -2,17 +2,17 @@
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
-  name: {{ template "workapi.fullname" . }}-admission
+  name: multicluster.x-k8s.io.workapi-admission
   namespace: {{ .Release.Namespace }}
   {{- if .Values.admissionWebhooks.certManager.enabled }}
   annotations:
-    cert-manager.io/inject-ca-from: {{ printf "%s/%s-root-cert" .Release.Namespace (include "workapi.fullname" .) | quote }}
+    cert-manager.io/inject-ca-from: {{ printf "%s/%s-root-cert" .Release.Namespace multicluster.x-k8s.io.workapi | quote }}
   {{- end }}
 webhooks:
   - clientConfig:
       caBundle: TODO
       service:
-        name: {{ template "workapi.name" . }}-webhook
+        name: multicluster.x-k8s.io.workapi-webhook
         namespace: {{ .Release.Namespace }}
         path: /validating-multicluster-x-k8s-io-v1alpha1-works
     {{- if .Values.admissionWebhooks.patch.enabled  }}

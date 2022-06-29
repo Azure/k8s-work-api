@@ -2,10 +2,8 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ template "workapi.name" . }}-webhook
+  name: multicluster.x-k8s.io.workapi-webhook
   namespace: {{ .Release.Namespace }}
-  labels:
-    {{- include "workapi.labels" . | nindent 4 }}
 spec:
   type: {{ .Values.webhookService.type }}
   ports:
@@ -13,7 +11,4 @@ spec:
       targetPort: {{ .Values.webhookService.port }}
       protocol: TCP
       name: https
-  selector:
-    {{ include "workapi.selectorLabels" . | nindent 6 }}
-
   {{- end -}}

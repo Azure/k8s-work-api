@@ -5,7 +5,7 @@
 apiVersion: cert-manager.io/v1
 kind: Issuer
 metadata:
-  name: {{ template "workapi.fullname" . }}-self-signed-issuer
+  name: multicluster.x-k8s.io.workapi-self-signed-issuer
 spec:
   selfSigned: {}
 
@@ -14,14 +14,14 @@ spec:
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: {{ template "workapi.fullname" . }}-root-cert
+  name: multicluster.x-k8s.io.workapi-root-cert
 spec:
-  secretName: {{ template "workapi.fullname" . }}-root-cert
+  secretName: multicluster.x-k8s.io.workapi-root-cert
   duration: 43800h # 5y
   revisionHistoryLimit: {{ .Values.admissionWebhooks.certManager.revisionHistoryLimit }}
   issuerRef:
-    name: {{ template "workapi.fullname" . }}-self-signed-issuer
-  commonName: "ca.webhook.workapi"
+    name: multicluster.x-k8s.io.workapi-self-signed-issuer
+  commonName: "ca.webhook.multicluster.x-k8s.io.workapi"
   isCA: true
 
 ---
@@ -29,27 +29,27 @@ spec:
 apiVersion: cert-manager.io/v1
 kind: Issuer
 metadata:
-  name: {{ template "workapi.fullname" . }}-root-issuer
+  name: multicluster.x-k8s.io.workapi-root-issuer
   namespace: {{ .Release.Namespace }}
 spec:
   ca:
-    secretName: {{ template "workapi.fullname" . }}-root-cert
+    secretName: multicluster.x-k8s.io.workapi-root-cert
 
 ---
 # generate a serving certificate for the apiservices to use
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: {{ template "workapi.fullname" . }}-admission
+  name: multicluster.x-k8s.io.workapi-admission
   namespace: {{ .Release.Namespace }}
 spec:
-  secretName: {{ template "workapi.fullname" . }}-admission
+  secretName: multicluster.x-k8s.io.workapi-admission
   duration: 8760h # 1y
   revisionHistoryLimit: {{ .Values.admissionWebhooks.certManager.revisionHistoryLimit }}
   issuerRef:
-    name: {{ template "workapi.fullname" . }}-root-issuer
+    name: multicluster.x-k8s.io.workapi-root-issuer
   dnsNames:
-    - {{ template "workapi.name" . }}-webhook.{{ .Release.Namespace }}.svc
-    - {{ template "workapi.name" . }}-webhook.{{ .Release.Namespace }}.svc.cluster.local
+    - multicluster.x-k8s.io.workapi-webhook.{{ .Release.Namespace }}.svc
+    - multicluster.x-k8s.io.workapi-webhook.{{ .Release.Namespace }}.svc.cluster.local
 
   {{- end }}

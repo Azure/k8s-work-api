@@ -19,8 +19,6 @@ package controllers
 import (
 	"context"
 	"os"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
-	"sigs.k8s.io/work-api/webhooks/multicluster.x-k8s.io/v1alpha1/work"
 
 	"github.com/go-logr/logr"
 	"k8s.io/client-go/dynamic"
@@ -29,6 +27,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/apiutil"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	"sigs.k8s.io/work-api/pkg/webhooks/multicluster.x-k8s.io/v1alpha1/work"
 
 	clientset "sigs.k8s.io/work-api/pkg/client/clientset/versioned"
 )
