@@ -18,6 +18,7 @@ package e2e
 
 import (
 	"context"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"time"
 
 	. "github.com/onsi/ginkgo"
@@ -25,7 +26,6 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/json"
 	utilrand "k8s.io/apimachinery/pkg/util/rand"
 	workapi "sigs.k8s.io/work-api/pkg/apis/v1alpha1"
@@ -202,6 +202,7 @@ var (
 			Context("with a added, modified, and removed manifest", func() {
 				// Todo, refactor this context to not use "over complicated structure".
 				var cm v1.ConfigMap
+				var err error
 				var newDataKey string
 				var newDataValue string
 				var configMapName string
@@ -209,6 +210,19 @@ var (
 				var namespaceToDelete string
 
 				It("should create a secret, modify the existing configmap, and remove the second configmap, from within the spoke", func() {
+					By("getting the existing Work resource on the hub")
+					Eventually(func() error {
+						createdWork, err = retrieveWork(createdWork.Namespace, createdWork.Name)
+						return err
+					}, eventuallyTimeout, eventuallyInterval).ShouldNot(HaveOccurred())
+
+					By("removing the test-namespace manifest")
+					namespaceToDelete = manifestMetaName[4]
+					manifests = manifests[:4]
+					manifestMetaName = manifestMetaName[:4]
+					manifestMetaNamespaces = manifestMetaNamespaces[:4]
+					createdWork.Spec.Workload.Manifests = createdWork.Spec.Workload.Manifests[:4]
+
 					By("modifying the existing configmap's manifest values")
 					configManifest := createdWork.Spec.Workload.Manifests[2]
 					// Unmarshal the data into a struct, modify and then update it.
@@ -227,16 +241,11 @@ var (
 					updatedManifest.Raw = rawManifest
 					createdWork.Spec.Workload.Manifests[2] = updatedManifest
 
-					By("removing the test-namespace manifest")
-					namespaceToDelete = manifestMetaName[4]
-					manifests = manifests[:4]
-					manifestMetaName = manifestMetaName[:4]
-					manifestMetaNamespaces = manifestMetaNamespaces[:4]
-
 					By("adding a secret manifest")
 					manifests = append(manifests, "testmanifests/test-secret.yaml")
 					manifestMetaName = append(manifestMetaName, "test-secret")
 					manifestMetaNamespaces = append(manifestMetaNamespaces, "default")
+					addManifestsToWorkSpec([]string{manifests[4]}, &createdWork.Spec)
 
 					By("updating all manifest changes to the Work resource in the hub")
 					createdWork, updateError = updateWork(createdWork)
