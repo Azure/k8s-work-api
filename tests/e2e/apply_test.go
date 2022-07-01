@@ -18,7 +18,6 @@ package e2e
 
 import (
 	"context"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"time"
 
 	. "github.com/onsi/ginkgo"
@@ -26,6 +25,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/json"
 	utilrand "k8s.io/apimachinery/pkg/util/rand"
 	workapi "sigs.k8s.io/work-api/pkg/apis/v1alpha1"
