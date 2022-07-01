@@ -45,7 +45,6 @@ var (
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 	utilruntime.Must(v1alpha1.AddToScheme(scheme))
-	klog.InitFlags(nil)
 }
 
 func main() {
@@ -59,6 +58,7 @@ func main() {
 	var healthAddr string
 	var concurrentReconciles int
 
+	klog.InitFlags(nil)
 	flag.StringVar(&metricsAddr, "metrics-addr", ":8080", "The address the metric endpoint binds to.")
 	flag.BoolVar(&enableLeaderElection, "enable-leader-election", false,
 		"Enable leader election for controller manager. Enabling this will ensure there is only one active controller manager.")
