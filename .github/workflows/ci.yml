@@ -82,7 +82,6 @@ jobs:
           flags: ci-tests
           name: codecov-umbrella
           fail_ci_if_error: true
-          verbose: true
 
   e2e:
     name: e2e
