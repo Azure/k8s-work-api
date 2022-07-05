@@ -75,12 +75,14 @@ jobs:
           GOPATH: ${{ env.GO_PATH }}
 
       - name: Upload report
-        uses: codecov/codecov-action@v2.1.0
+        uses: codecov/codecov-action@v3
         with:
           ## Comma-separated list of files to upload
           files: ./cover.out
           flags: ci-tests
           name: codecov-umbrella
+          fail_ci_if_error: true
+          verbose: true
 
   e2e:
     name: e2e
