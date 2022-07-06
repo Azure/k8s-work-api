@@ -3,13 +3,9 @@
 This repo will hold design documents and implementation of the [Work API](https://docs.google.com/document/d/1cWcdB40pGg3KS1eSyb9Q6SIRvWVI8dEjFp9RI0Gk0vg/edit#).
 
 ![GitHub go.mod Go version][1] ![Build Status][2] [![codecov][3]][4]
-
 ![issues][5] ![Activity][6]
-<br/>
-![GitHub release (latest by date)][7] 
 
-
-
+![GitHub release (latest by date)][7]
 
 ## Community, discussion, contribution, and support
 
