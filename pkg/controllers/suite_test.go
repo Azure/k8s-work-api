@@ -18,7 +18,6 @@ package controllers
 
 import (
 	"fmt"
-	"k8s.io/apimachinery/pkg/runtime"
 	"os"
 	"path/filepath"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -81,7 +80,7 @@ var _ = BeforeSuite(func(done Done) {
 	k8sClient, err = kubernetes.NewForConfig(cfg)
 	Expect(err).NotTo(HaveOccurred())
 	workClient, err = client.New(cfg, client.Options{
-		Scheme: runtime.NewScheme(),
+		Scheme: scheme.Scheme,
 	})
 	Expect(err).NotTo(HaveOccurred())
 	dynamicClient, err = dynamic.NewForConfig(cfg)

@@ -87,6 +87,7 @@ vet: ## Run go vet against code
 
 .PHONY: generate
 generate: ## Run generators for Deepcopy funcs and CRDs
+	./hack/update-codegen.sh
 	$(CONTROLLER_GEN) object:headerFile=./hack/boilerplate.go.txt paths="./..."
 
 .PHONY: manifests
