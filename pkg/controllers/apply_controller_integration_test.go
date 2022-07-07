@@ -192,7 +192,6 @@ var _ = Describe("work reconciler", func() {
 				},
 			}
 
-			var originalWork *workv1alpha1.Work
 			var err error
 			currentWork := workv1alpha1.Work{}
 			err = workClient.Get(context.Background(), types.NamespacedName{
@@ -201,13 +200,12 @@ var _ = Describe("work reconciler", func() {
 			}, &currentWork)
 			Expect(err).ToNot(HaveOccurred())
 
-			newWork := originalWork.DeepCopy()
-			newWork.Spec.Workload.Manifests = []workv1alpha1.Manifest{
+			currentWork.Spec.Workload.Manifests = []workv1alpha1.Manifest{
 				{
 					RawExtension: runtime.RawExtension{Object: &cm},
 				},
 			}
-			err = workClient.Update(context.Background(), newWork)
+			err = workClient.Update(context.Background(), &currentWork)
 			Expect(err).ToNot(HaveOccurred())
 
 			By("Work status", func() {

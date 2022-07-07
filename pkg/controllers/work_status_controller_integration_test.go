@@ -149,11 +149,10 @@ var _ = Describe("Work Status Reconciler", func() {
 			Expect(err).ToNot(HaveOccurred())
 
 			Eventually(func() bool {
-				newAppliedWork := workv1alpha1.AppliedWork{}
-				err := workClient.Update(context.Background(), &newAppliedWork)
+				err := workClient.Update(context.Background(), &appliedWork)
 				Expect(err).ToNot(HaveOccurred())
 
-				return len(newAppliedWork.Status.AppliedResources) > 0
+				return len(appliedWork.Status.AppliedResources) > 0
 			}, timeout, interval).Should(BeTrue())
 		})
 	})

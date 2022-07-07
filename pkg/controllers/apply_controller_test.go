@@ -75,7 +75,7 @@ var _ = Describe("Work Controller", func() {
 
 			work := &workv1alpha1.Work{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "comfigmap-work",
+					Name:      "test-work",
 					Namespace: workNamespace,
 				},
 				Spec: workv1alpha1.WorkSpec{
@@ -89,7 +89,7 @@ var _ = Describe("Work Controller", func() {
 				},
 			}
 
-			err := workClient.Update(context.Background(), work)
+			err := workClient.Create(context.Background(), work)
 			Expect(err).ToNot(HaveOccurred())
 
 			Eventually(func() error {

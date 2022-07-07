@@ -79,8 +79,9 @@ var _ = ginkgo.BeforeSuite(func() {
 	gomega.Expect(err).ToNot(gomega.HaveOccurred())
 
 	hubWorkClient, err = client.New(restConfig, client.Options{
-		Scheme: runtime.NewScheme(),
+		Scheme: scheme.Scheme,
 	})
+	gomega.Expect(err).ToNot(gomega.HaveOccurred())
 
 	spokeKubeClient, err = kubernetes.NewForConfig(restConfig)
 	gomega.Expect(err).ToNot(gomega.HaveOccurred())
@@ -92,7 +93,7 @@ var _ = ginkgo.BeforeSuite(func() {
 	gomega.Expect(err).ToNot(gomega.HaveOccurred())
 
 	spokeClient, err = client.New(restConfig, client.Options{
-		Scheme: runtime.NewScheme(),
+		Scheme: scheme.Scheme,
 	})
 	gomega.Expect(err).ToNot(gomega.HaveOccurred())
 
