@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"k8s.io/apimachinery/pkg/types"
 	"time"
 
 	. "github.com/onsi/ginkgo"
@@ -93,7 +94,7 @@ var _ = Describe("work reconciler", func() {
 			},
 		}
 
-		_, createWorkErr := workClient.MulticlusterV1alpha1().Works(workNamespace).Create(context.Background(), work, metav1.CreateOptions{})
+		createWorkErr := workClient.Create(context.Background(), work)
 		Expect(createWorkErr).ToNot(HaveOccurred())
 	})
 
@@ -105,15 +106,23 @@ var _ = Describe("work reconciler", func() {
 	Context("receives a Work to reconcile", func() {
 		It("should verify that the Work contains multicluster.x-k8s.io/work-cleanup finalizer", func() {
 			Eventually(func() bool {
-				currentWork, err := workClient.MulticlusterV1alpha1().Works(workNamespace).Get(context.Background(), workName, metav1.GetOptions{})
+				currentWork := workv1alpha1.Work{}
+				err := workClient.Get(context.Background(), types.NamespacedName{
+					Namespace: workNamespace,
+					Name:      workName,
+				}, &currentWork)
 				Expect(err).ToNot(HaveOccurred())
-				return controllerutil.ContainsFinalizer(currentWork, workFinalizer)
+				return controllerutil.ContainsFinalizer(&currentWork, workFinalizer)
 			}, timeout, interval).Should(BeTrue())
 		})
 
 		It("should have created an AppliedWork Resource", func() {
 			Eventually(func() bool {
-				appliedWorkObject, err := workClient.MulticlusterV1alpha1().AppliedWorks().Get(context.Background(), workName, metav1.GetOptions{})
+				appliedWorkObject := workv1alpha1.AppliedWork{}
+				err := workClient.Get(context.Background(), types.NamespacedName{
+					Namespace: workNamespace,
+					Name:      workName,
+				}, &appliedWorkObject)
 				if err == nil {
 					return appliedWorkObject.Spec.WorkName == workName
 				}
@@ -133,7 +142,11 @@ var _ = Describe("work reconciler", func() {
 
 		It("should save the conditions for the manifest", func() {
 			Eventually(func() bool {
-				currentWork, err := workClient.MulticlusterV1alpha1().Works(workNamespace).Get(context.Background(), workName, metav1.GetOptions{})
+				currentWork := workv1alpha1.Work{}
+				err := workClient.Get(context.Background(), types.NamespacedName{
+					Namespace: workNamespace,
+					Name:      workName,
+				}, &currentWork)
 				if err == nil {
 					if len(currentWork.Status.ManifestConditions) > 0 {
 						return currentWork.Status.ManifestConditions[0].Identifier.Name == resourceName &&
@@ -147,7 +160,11 @@ var _ = Describe("work reconciler", func() {
 
 		It("should have created AppliedResourceMeta details on the AppliedWork's status", func() {
 			Eventually(func() bool {
-				appliedWorkObject, err := workClient.MulticlusterV1alpha1().AppliedWorks().Get(context.Background(), workName, metav1.GetOptions{})
+				appliedWorkObject := workv1alpha1.AppliedWork{}
+				err := workClient.Get(context.Background(), types.NamespacedName{
+					Namespace: workNamespace,
+					Name:      workName,
+				}, &appliedWorkObject)
 				if err == nil {
 					if len(appliedWorkObject.Status.AppliedResources) > 0 {
 						return appliedWorkObject.Status.AppliedResources[0].Name == resourceName &&
@@ -177,23 +194,29 @@ var _ = Describe("work reconciler", func() {
 
 			var originalWork *workv1alpha1.Work
 			var err error
-			Eventually(func() error {
-				originalWork, err = workClient.MulticlusterV1alpha1().Works(workNamespace).Get(context.Background(), workName, metav1.GetOptions{})
-				Expect(err).ToNot(HaveOccurred())
+			currentWork := workv1alpha1.Work{}
+			err = workClient.Get(context.Background(), types.NamespacedName{
+				Namespace: workNamespace,
+				Name:      workName,
+			}, &currentWork)
+			Expect(err).ToNot(HaveOccurred())
 
-				newWork := originalWork.DeepCopy()
-				newWork.Spec.Workload.Manifests = []workv1alpha1.Manifest{
-					{
-						RawExtension: runtime.RawExtension{Object: &cm},
-					},
-				}
-				_, err = workClient.MulticlusterV1alpha1().Works(workNamespace).Update(context.Background(), newWork, metav1.UpdateOptions{})
-				return err
-			}, timeout, interval).ShouldNot(HaveOccurred())
+			newWork := originalWork.DeepCopy()
+			newWork.Spec.Workload.Manifests = []workv1alpha1.Manifest{
+				{
+					RawExtension: runtime.RawExtension{Object: &cm},
+				},
+			}
+			err = workClient.Update(context.Background(), newWork)
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Work status", func() {
 				Eventually(func() bool {
-					currentWork, err := workClient.MulticlusterV1alpha1().Works(workNamespace).Get(context.Background(), workName, metav1.GetOptions{})
+					currentWork := workv1alpha1.Work{}
+					err = workClient.Get(context.Background(), types.NamespacedName{
+						Namespace: workNamespace,
+						Name:      workName,
+					}, &currentWork)
 					if err == nil {
 						if len(currentWork.Status.Conditions) > 0 && len(currentWork.Status.ManifestConditions) > 0 {
 							return currentWork.Status.ManifestConditions[0].Identifier.Name == cm.Name &&
