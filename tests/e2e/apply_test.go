@@ -18,6 +18,7 @@ package e2e
 
 import (
 	"context"
+	"k8s.io/apimachinery/pkg/types"
 	"time"
 
 	. "github.com/onsi/ginkgo"
@@ -85,7 +86,11 @@ var (
 				})
 				It("should have an AppliedWork resource in the spoke ", func() {
 					Eventually(func() error {
-						_, err := spokeWorkClient.MulticlusterV1alpha1().AppliedWorks().Get(context.Background(), createdWork.Name, metav1.GetOptions{})
+						appliedWork := workapi.AppliedWork{}
+						err := spokeClient.Get(context.Background(), types.NamespacedName{
+							Namespace: workNamespace,
+							Name:      workName,
+						}, &appliedWork)
 
 						return err
 					}, eventuallyTimeout, eventuallyInterval).ShouldNot(HaveOccurred())
@@ -358,7 +363,7 @@ var (
 				// Todo - Replace with Eventually.
 				time.Sleep(2 * time.Second) // Give time for AppliedWork to be created.
 				// Grab the AppliedWork, so resource garbage collection can be verified.
-				appliedWork, getError = retrieveAppliedWork(createdWork.Name)
+				appliedWork, getError = retrieveAppliedWork(createdWork.Name, createdWork.Namespace)
 				Expect(getError).ToNot(HaveOccurred())
 
 				deleteError = safeDeleteWork(createdWork)
@@ -394,7 +399,7 @@ var (
 			})
 			It("should have deleted the AppliedWork resource from the spoke", func() {
 				Eventually(func() error {
-					_, err := retrieveAppliedWork(createdWork.Name)
+					_, err := retrieveAppliedWork(createdWork.Name, createdWork.Namespace)
 
 					return err
 				}, eventuallyTimeout, eventuallyInterval).Should(HaveOccurred())
@@ -431,26 +436,43 @@ func createWork(workName string, workNamespace string, manifestFiles []string) (
 	}
 
 	addManifestsToWorkSpec(manifestFiles, &work.Spec)
-	createdWork, createError = hubWorkClient.MulticlusterV1alpha1().Works(work.Namespace).Create(context.Background(), work, metav1.CreateOptions{})
+
+	createError = hubWorkClient.Create(context.Background(), work)
+	_ = hubWorkClient.Get(context.Background(), types.NamespacedName{
+		Namespace: workNamespace,
+		Name:      workName,
+	}, createdWork)
 
 	return createdWork, createError
 }
-func retrieveAppliedWork(resourceName string) (*workapi.AppliedWork, error) {
-	return spokeWorkClient.MulticlusterV1alpha1().AppliedWorks().Get(context.Background(), resourceName, metav1.GetOptions{})
+func retrieveAppliedWork(resourceName string, resourceNamespace string) (*workapi.AppliedWork, error) {
+	err := spokeClient.Get(context.Background(), types.NamespacedName{Namespace: workNamespace, Name: resourceName}, appliedWork)
+	if err != nil {
+		return nil, err
+	}
+	return appliedWork, nil
 }
 func retrieveWork(workNamespace string, workName string) (*workapi.Work, error) {
-	return hubWorkClient.MulticlusterV1alpha1().Works(workNamespace).Get(context.Background(), workName, metav1.GetOptions{})
+	err := hubWorkClient.Get(context.Background(), types.NamespacedName{Namespace: workNamespace, Name: workName}, createdWork)
+	if err != nil {
+		return nil, err
+	}
+	return createdWork, nil
 }
 func safeDeleteWork(work *workapi.Work) error {
 	// ToDo - Replace with proper Eventually.
 	time.Sleep(1 * time.Second)
-	_, getError = hubWorkClient.MulticlusterV1alpha1().Works(work.Namespace).Get(context.Background(), work.Name, metav1.GetOptions{})
-	if getError == nil {
-		deleteError = hubWorkClient.MulticlusterV1alpha1().Works(createdWork.Namespace).Delete(context.Background(), createdWork.Name, metav1.DeleteOptions{})
+	err := hubWorkClient.Get(context.Background(), types.NamespacedName{Namespace: work.Namespace, Name: work.Name}, createdWork)
+	if err == nil {
+		deleteError := hubWorkClient.Delete(context.Background(), createdWork)
+		return deleteError
 	}
-
-	return getError
+	return err
 }
 func updateWork(work *workapi.Work) (*workapi.Work, error) {
-	return hubWorkClient.MulticlusterV1alpha1().Works(work.Namespace).Update(context.Background(), work, metav1.UpdateOptions{})
+	err := hubWorkClient.Update(context.Background(), work)
+	if err != nil {
+		return nil, err
+	}
+	return work, err
 }
