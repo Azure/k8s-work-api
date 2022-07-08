@@ -181,24 +181,17 @@ var (
 					configMapNamespace = cm.Namespace
 
 					err = spokeKubeClient.CoreV1().ConfigMaps(configMapNamespace).Delete(context.Background(), configMapName, metav1.DeleteOptions{})
-					if err != nil {
-						println(err.Error())
-					}
+					Expect(err).ToNot(HaveOccurred())
 
 					// Add random new key value pair into map.
 					newDataKey = utilrand.String(5)
 					newDataValue = utilrand.String(5)
-					println(newDataKey)
-					println(newDataValue)
 					cm.Data[newDataKey] = newDataValue
 					rawManifest, err := json.Marshal(cm)
 					Expect(err).ToNot(HaveOccurred())
 					updatedManifest := workapi.Manifest{}
 					updatedManifest.Raw = rawManifest
 					createdWork.Spec.Workload.Manifests[2] = updatedManifest
-					println("cm info")
-					println(cm.Name)
-					println(cm.Namespace)
 
 					By("updating a manifest specification within the existing Work on the hub")
 					createdWork, updateError = updateWork(createdWork)
@@ -207,17 +200,8 @@ var (
 
 				It("should reapply the manifest.", func() {
 					Eventually(func() bool {
-						println(configMapNamespace)
-						println(configMapName)
 						configMap, _ := spokeKubeClient.CoreV1().ConfigMaps(configMapNamespace).Get(context.Background(), configMapName, metav1.GetOptions{})
-						for k, v := range configMap.Data {
-							println(k)
-							println(v)
-						}
-						println(configMapName)
-						println(newDataKey)
-						println(configMap.Data[newDataKey])
-						println(newDataValue)
+
 						return configMap.Data[newDataKey] == newDataValue
 					}, eventuallyTimeout, eventuallyInterval).Should(BeTrue())
 				})
@@ -234,9 +218,7 @@ var (
 
 				BeforeEach(func() {
 					err = spokeKubeClient.CoreV1().ConfigMaps("default").Delete(context.Background(), "test-configmap", metav1.DeleteOptions{})
-					if err != nil {
-						println(err.Error())
-					}
+					Expect(err).ToNot(HaveOccurred())
 				})
 
 				It("should create a secret, modify the existing configmap, and remove the second configmap, from within the spoke", func() {
@@ -340,11 +322,7 @@ var (
 				// Grab the AppliedWork, so resource garbage collection can be verified.
 				appliedWork, getError = retrieveAppliedWork(createdWork.Name)
 				Expect(getError).ToNot(HaveOccurred())
-				println("Before deletion")
 				deleteError = safeDeleteWork(createdWork)
-				if deleteError != nil {
-					println(deleteError.Error())
-				}
 				Expect(deleteError).ToNot(HaveOccurred())
 			})
 
@@ -421,20 +399,15 @@ func createWork(workName string, workNamespace string, manifestFiles []string) (
 		Namespace: workNamespace,
 		Name:      workName,
 	}, &newWork)
-	println("current work is")
-	println(newWork.Name)
 
 	return &newWork, createError
 }
 func retrieveAppliedWork(resourceName string) (*workapi.AppliedWork, error) {
-	println("at retrieve")
 	retrievedAppliedWork := workapi.AppliedWork{}
 	err := spokeClient.Get(context.Background(), types.NamespacedName{Name: resourceName}, &retrievedAppliedWork)
 	if err != nil {
 		return &retrievedAppliedWork, err
 	}
-	println(retrievedAppliedWork.Name)
-	println(retrievedAppliedWork.Namespace)
 	return &retrievedAppliedWork, nil
 }
 func retrieveWork(workNamespace string, workName string) (*workapi.Work, error) {
