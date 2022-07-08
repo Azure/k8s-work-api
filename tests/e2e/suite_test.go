@@ -20,6 +20,7 @@ import (
 	"embed"
 	"os"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/work-api/pkg/apis/v1alpha1"
 	"testing"
 
 	"github.com/onsi/ginkgo"
@@ -57,6 +58,7 @@ var (
 func init() {
 	utilruntime.Must(scheme.AddToScheme(genericScheme))
 	utilruntime.Must(apiextensionsv1.AddToScheme(genericScheme))
+	utilruntime.Must(v1alpha1.AddToScheme(genericScheme))
 }
 
 func TestE2e(t *testing.T) {
@@ -79,7 +81,7 @@ var _ = ginkgo.BeforeSuite(func() {
 	gomega.Expect(err).ToNot(gomega.HaveOccurred())
 
 	hubWorkClient, err = client.New(restConfig, client.Options{
-		Scheme: scheme.Scheme,
+		Scheme: genericScheme,
 	})
 	gomega.Expect(err).ToNot(gomega.HaveOccurred())
 
@@ -93,7 +95,7 @@ var _ = ginkgo.BeforeSuite(func() {
 	gomega.Expect(err).ToNot(gomega.HaveOccurred())
 
 	spokeClient, err = client.New(restConfig, client.Options{
-		Scheme: scheme.Scheme,
+		Scheme: genericScheme,
 	})
 	gomega.Expect(err).ToNot(gomega.HaveOccurred())
 

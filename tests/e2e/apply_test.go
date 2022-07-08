@@ -166,13 +166,13 @@ var (
 			})
 			Context("with a modified manifest", func() {
 				// Todo, refactor this context to not use "over complicated structure".
-				var cm v1.ConfigMap
 				var newDataKey string
 				var newDataValue string
 				var configMapName string
 				var configMapNamespace string
 
 				BeforeEach(func() {
+					var cm v1.ConfigMap
 					configManifest := createdWork.Spec.Workload.Manifests[2]
 					// Unmarshal the data into a struct, modify and then update it.
 					err := json.Unmarshal(configManifest.Raw, &cm)
@@ -180,15 +180,25 @@ var (
 					configMapName = cm.Name
 					configMapNamespace = cm.Namespace
 
+					err = spokeKubeClient.CoreV1().ConfigMaps(configMapNamespace).Delete(context.Background(), configMapName, metav1.DeleteOptions{})
+					if err != nil {
+						println(err.Error())
+					}
+
 					// Add random new key value pair into map.
 					newDataKey = utilrand.String(5)
 					newDataValue = utilrand.String(5)
+					println(newDataKey)
+					println(newDataValue)
 					cm.Data[newDataKey] = newDataValue
 					rawManifest, err := json.Marshal(cm)
 					Expect(err).ToNot(HaveOccurred())
 					updatedManifest := workapi.Manifest{}
 					updatedManifest.Raw = rawManifest
 					createdWork.Spec.Workload.Manifests[2] = updatedManifest
+					println("cm info")
+					println(cm.Name)
+					println(cm.Namespace)
 
 					By("updating a manifest specification within the existing Work on the hub")
 					createdWork, updateError = updateWork(createdWork)
@@ -197,8 +207,17 @@ var (
 
 				It("should reapply the manifest.", func() {
 					Eventually(func() bool {
+						println(configMapNamespace)
+						println(configMapName)
 						configMap, _ := spokeKubeClient.CoreV1().ConfigMaps(configMapNamespace).Get(context.Background(), configMapName, metav1.GetOptions{})
-
+						for k, v := range configMap.Data {
+							println(k)
+							println(v)
+						}
+						println(configMapName)
+						println(newDataKey)
+						println(configMap.Data[newDataKey])
+						println(newDataValue)
 						return configMap.Data[newDataKey] == newDataValue
 					}, eventuallyTimeout, eventuallyInterval).Should(BeTrue())
 				})
@@ -363,7 +382,7 @@ var (
 				// Todo - Replace with Eventually.
 				time.Sleep(2 * time.Second) // Give time for AppliedWork to be created.
 				// Grab the AppliedWork, so resource garbage collection can be verified.
-				appliedWork, getError = retrieveAppliedWork(createdWork.Name, createdWork.Namespace)
+				appliedWork, getError = retrieveAppliedWork(createdWork.Name)
 				Expect(getError).ToNot(HaveOccurred())
 
 				deleteError = safeDeleteWork(createdWork)
@@ -399,7 +418,7 @@ var (
 			})
 			It("should have deleted the AppliedWork resource from the spoke", func() {
 				Eventually(func() error {
-					_, err := retrieveAppliedWork(createdWork.Name, createdWork.Namespace)
+					_, err := retrieveAppliedWork(createdWork.Name)
 
 					return err
 				}, eventuallyTimeout, eventuallyInterval).Should(HaveOccurred())
@@ -437,35 +456,49 @@ func createWork(workName string, workNamespace string, manifestFiles []string) (
 
 	addManifestsToWorkSpec(manifestFiles, &work.Spec)
 
+	newWork := workapi.Work{}
 	createError = hubWorkClient.Create(context.Background(), work)
 	_ = hubWorkClient.Get(context.Background(), types.NamespacedName{
 		Namespace: workNamespace,
 		Name:      workName,
-	}, createdWork)
+	}, &newWork)
+	println("current work is")
+	println(newWork.Name)
 
-	return createdWork, createError
+	return &newWork, createError
 }
-func retrieveAppliedWork(resourceName string, resourceNamespace string) (*workapi.AppliedWork, error) {
-	err := spokeClient.Get(context.Background(), types.NamespacedName{Namespace: workNamespace, Name: resourceName}, appliedWork)
+func retrieveAppliedWork(resourceName string) (*workapi.AppliedWork, error) {
+	println("at retrieve")
+	retrievedAppliedWork := workapi.AppliedWork{}
+	err := spokeClient.Get(context.Background(), types.NamespacedName{Name: resourceName}, &retrievedAppliedWork)
 	if err != nil {
-		return nil, err
+		return &retrievedAppliedWork, err
 	}
-	return appliedWork, nil
+	println(retrievedAppliedWork.Name)
+	println(retrievedAppliedWork.Namespace)
+	return &retrievedAppliedWork, nil
 }
 func retrieveWork(workNamespace string, workName string) (*workapi.Work, error) {
-	err := hubWorkClient.Get(context.Background(), types.NamespacedName{Namespace: workNamespace, Name: workName}, createdWork)
+	workRetrieved := workapi.Work{}
+	err := hubWorkClient.Get(context.Background(), types.NamespacedName{Namespace: workNamespace, Name: workName}, &workRetrieved)
 	if err != nil {
 		return nil, err
 	}
-	return createdWork, nil
+	return &workRetrieved, nil
 }
 func safeDeleteWork(work *workapi.Work) error {
 	// ToDo - Replace with proper Eventually.
 	time.Sleep(1 * time.Second)
-	err := hubWorkClient.Get(context.Background(), types.NamespacedName{Namespace: work.Namespace, Name: work.Name}, createdWork)
+	currentWork := workapi.Work{}
+	println("delete work name")
+	println(work.Name)
+	err := hubWorkClient.Get(context.Background(), types.NamespacedName{Name: work.Name, Namespace: work.Namespace}, &currentWork)
 	if err == nil {
-		deleteError := hubWorkClient.Delete(context.Background(), createdWork)
-		return deleteError
+		err = hubWorkClient.Delete(context.Background(), &currentWork)
+		if err != nil {
+			return err
+		}
+		return nil
 	}
 	return err
 }
@@ -474,5 +507,10 @@ func updateWork(work *workapi.Work) (*workapi.Work, error) {
 	if err != nil {
 		return nil, err
 	}
-	return work, err
+
+	updatedWork, err := retrieveWork(work.Namespace, work.Name)
+	if err != nil {
+		return nil, err
+	}
+	return updatedWork, err
 }
