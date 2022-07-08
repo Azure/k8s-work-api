@@ -18,16 +18,16 @@ package e2e
 
 import (
 	"context"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/json"
 	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/util/json"
 	utilrand "k8s.io/apimachinery/pkg/util/rand"
 
 	workapi "sigs.k8s.io/work-api/pkg/apis/v1alpha1"
@@ -232,6 +232,13 @@ var (
 				var configMapNamespace string
 				var namespaceToDelete string
 
+				BeforeEach(func() {
+					err = spokeKubeClient.CoreV1().ConfigMaps("default").Delete(context.Background(), "test-configmap", metav1.DeleteOptions{})
+					if err != nil {
+						println(err.Error())
+					}
+				})
+
 				It("should create a secret, modify the existing configmap, and remove the second configmap, from within the spoke", func() {
 					By("getting the existing Work resource on the hub")
 					Eventually(func() error {
@@ -384,8 +391,11 @@ var (
 				// Grab the AppliedWork, so resource garbage collection can be verified.
 				appliedWork, getError = retrieveAppliedWork(createdWork.Name)
 				Expect(getError).ToNot(HaveOccurred())
-
+				println("Before deletion")
 				deleteError = safeDeleteWork(createdWork)
+				if deleteError != nil {
+					println(deleteError.Error())
+				}
 				Expect(deleteError).ToNot(HaveOccurred())
 			})
 
@@ -490,8 +500,6 @@ func safeDeleteWork(work *workapi.Work) error {
 	// ToDo - Replace with proper Eventually.
 	time.Sleep(1 * time.Second)
 	currentWork := workapi.Work{}
-	println("delete work name")
-	println(work.Name)
 	err := hubWorkClient.Get(context.Background(), types.NamespacedName{Name: work.Name, Namespace: work.Namespace}, &currentWork)
 	if err == nil {
 		err = hubWorkClient.Delete(context.Background(), &currentWork)

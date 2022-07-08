@@ -113,7 +113,12 @@ func (r *FinalizeWorkReconciler) Reconcile(ctx context.Context, req ctrl.Request
 func (r *FinalizeWorkReconciler) garbageCollectAppliedWork(ctx context.Context, work *workv1alpha1.Work) (ctrl.Result, error) {
 	if controllerutil.ContainsFinalizer(work, workFinalizer) {
 		deletePolicy := metav1.DeletePropagationForeground
-		err := r.spokeClient.Delete(ctx, work, &client.DeleteOptions{PropagationPolicy: &deletePolicy})
+		appliedWork := workv1alpha1.AppliedWork{}
+		err := r.spokeClient.Get(ctx, types.NamespacedName{
+			Namespace: work.Namespace,
+			Name:      work.Name,
+		}, &appliedWork)
+		err = r.spokeClient.Delete(ctx, &appliedWork, &client.DeleteOptions{PropagationPolicy: &deletePolicy})
 		if err != nil {
 			klog.ErrorS(err, "failed to delete the applied Work", work.Name)
 			return ctrl.Result{}, err
