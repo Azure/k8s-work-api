@@ -118,6 +118,9 @@ func (r *FinalizeWorkReconciler) garbageCollectAppliedWork(ctx context.Context, 
 			Namespace: work.Namespace,
 			Name:      work.Name,
 		}, &appliedWork)
+		if err != nil {
+			return ctrl.Result{}, err
+		}
 		err = r.spokeClient.Delete(ctx, &appliedWork, &client.DeleteOptions{PropagationPolicy: &deletePolicy})
 		if err != nil {
 			klog.ErrorS(err, "failed to delete the applied Work", work.Name)
