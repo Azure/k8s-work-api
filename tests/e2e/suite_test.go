@@ -19,8 +19,6 @@ package e2e
 import (
 	"embed"
 	"os"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/work-api/pkg/apis/v1alpha1"
 	"testing"
 
 	"github.com/onsi/ginkgo"
@@ -35,8 +33,11 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+
+	"sigs.k8s.io/work-api/pkg/apis/v1alpha1"
 )
 
 var (

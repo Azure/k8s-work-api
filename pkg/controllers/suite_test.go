@@ -20,7 +20,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"testing"
 
 	. "github.com/onsi/ginkgo"
@@ -30,6 +29,7 @@ import (
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	"sigs.k8s.io/controller-runtime/pkg/envtest/printer"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"

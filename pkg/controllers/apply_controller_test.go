@@ -19,7 +19,6 @@ package controllers
 import (
 	"context"
 	"fmt"
-	"k8s.io/apimachinery/pkg/types"
 	"time"
 
 	. "github.com/onsi/ginkgo"
@@ -29,6 +28,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	utilrand "k8s.io/apimachinery/pkg/util/rand"
 	workv1alpha1 "sigs.k8s.io/work-api/pkg/apis/v1alpha1"
 )
