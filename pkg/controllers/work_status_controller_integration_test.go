@@ -137,21 +137,4 @@ var _ = Describe("Work Status Reconciler", func() {
 			}, timeout, interval).Should(BeTrue())
 		})
 	})
-	Context("Receives a request where a Work's manifest condition exists, but there isn't a respective AppliedResourceMeta.", func() {
-		It("Resource is deleted from the AppliedResources of the AppliedWork", func() {
-			appliedWork := workv1alpha1.AppliedWork{}
-			err := workClient.Get(context.Background(), types.NamespacedName{Name: workName, Namespace: workNamespace}, &appliedWork)
-			Expect(err).ToNot(HaveOccurred())
-			appliedWork.Status.AppliedResources = []workv1alpha1.AppliedResourceMeta{}
-			err = workClient.Update(context.Background(), &appliedWork)
-			Expect(err).ToNot(HaveOccurred())
-
-			Eventually(func() bool {
-				err := workClient.Update(context.Background(), &appliedWork)
-				Expect(err).ToNot(HaveOccurred())
-
-				return len(appliedWork.Status.AppliedResources) > 0
-			}, timeout, interval).Should(BeTrue())
-		})
-	})
 })
