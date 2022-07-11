@@ -196,27 +196,29 @@ var _ = Describe("work reconciler", func() {
 				},
 			}
 
-			var err error
-			currentWork := workv1alpha1.Work{}
-			time.Sleep(5 * time.Second)
-			err = workClient.Get(context.Background(), types.NamespacedName{
-				Namespace: workNamespace,
-				Name:      workName,
-			}, &currentWork)
-			Expect(err).ToNot(HaveOccurred())
+			Eventually(func() bool {
+				var err error
+				currentWork := workv1alpha1.Work{}
+				err = workClient.Get(context.Background(), types.NamespacedName{
+					Namespace: workNamespace,
+					Name:      workName,
+				}, &currentWork)
+				Expect(err).ToNot(HaveOccurred())
 
-			currentWork.Spec.Workload.Manifests = []workv1alpha1.Manifest{
-				{
-					RawExtension: runtime.RawExtension{Object: &cm},
-				},
-			}
-			err = workClient.Update(context.Background(), &currentWork)
-			Expect(err).ToNot(HaveOccurred())
+				currentWork.Spec.Workload.Manifests = []workv1alpha1.Manifest{
+					{
+						RawExtension: runtime.RawExtension{Object: &cm},
+					},
+				}
+				err = workClient.Update(context.Background(), &currentWork)
+
+				return err == nil
+			}, timeout, interval).Should(BeTrue())
 
 			By("Work status", func() {
 				Eventually(func() bool {
 					currentWork := workv1alpha1.Work{}
-					err = workClient.Get(context.Background(), types.NamespacedName{
+					err := workClient.Get(context.Background(), types.NamespacedName{
 						Namespace: workNamespace,
 						Name:      workName,
 					}, &currentWork)
