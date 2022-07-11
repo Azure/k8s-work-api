@@ -99,7 +99,6 @@ var _ = Describe("Work Status Reconciler", func() {
 
 		Eventually(func() bool {
 			namespacedName := types.NamespacedName{Name: workName, Namespace: workNamespace}
-
 			getAppliedWork := workv1alpha1.AppliedWork{}
 			err := workClient.Get(context.Background(), namespacedName, &getAppliedWork)
 			if err == nil {
@@ -138,8 +137,7 @@ var _ = Describe("Work Status Reconciler", func() {
 			}, timeout, interval).Should(BeTrue())
 		})
 	})
-	Context("Receives a request where a Work's manifest condition exists, but there"+
-		" isn't a respective AppliedResourceMeta.", func() {
+	Context("Receives a request where a Work's manifest condition exists, but there isn't a respective AppliedResourceMeta.", func() {
 		It("Resource is deleted from the AppliedResources of the AppliedWork", func() {
 			appliedWork := workv1alpha1.AppliedWork{}
 			err := workClient.Get(context.Background(), types.NamespacedName{Name: workName, Namespace: workNamespace}, &appliedWork)

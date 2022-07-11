@@ -18,16 +18,16 @@ package e2e
 
 import (
 	"context"
-	v1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/util/json"
 	"time"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/json"
 	utilrand "k8s.io/apimachinery/pkg/util/rand"
 
 	workapi "sigs.k8s.io/work-api/pkg/apis/v1alpha1"
@@ -138,6 +138,7 @@ var (
 					By("getting the existing Work resource on the hub")
 					Eventually(func() error {
 						work, err = retrieveWork(createdWork.Namespace, createdWork.Name)
+
 						return err
 					}, eventuallyTimeout, eventuallyInterval).ShouldNot(HaveOccurred())
 
@@ -145,6 +146,7 @@ var (
 					Eventually(func() error {
 						addManifestsToWorkSpec([]string{manifests[2]}, &work.Spec)
 						_, err = updateWork(work)
+
 						return err
 					}, eventuallyTimeout, eventuallyInterval).ShouldNot(HaveOccurred())
 				})
@@ -180,9 +182,6 @@ var (
 					configMapName = cm.Name
 					configMapNamespace = cm.Namespace
 
-					err = spokeKubeClient.CoreV1().ConfigMaps(configMapNamespace).Delete(context.Background(), configMapName, metav1.DeleteOptions{})
-					Expect(err).ToNot(HaveOccurred())
-
 					// Add random new key value pair into map.
 					newDataKey = utilrand.String(5)
 					newDataValue = utilrand.String(5)
@@ -216,15 +215,11 @@ var (
 				var configMapNamespace string
 				var namespaceToDelete string
 
-				BeforeEach(func() {
-					err = spokeKubeClient.CoreV1().ConfigMaps("default").Delete(context.Background(), "test-configmap", metav1.DeleteOptions{})
-					Expect(err).ToNot(HaveOccurred())
-				})
-
 				It("should create a secret, modify the existing configmap, and remove the second configmap, from within the spoke", func() {
 					By("getting the existing Work resource on the hub")
 					Eventually(func() error {
 						createdWork, err = retrieveWork(createdWork.Namespace, createdWork.Name)
+
 						return err
 					}, eventuallyTimeout, eventuallyInterval).ShouldNot(HaveOccurred())
 
@@ -408,6 +403,7 @@ func retrieveAppliedWork(resourceName string) (*workapi.AppliedWork, error) {
 	if err != nil {
 		return &retrievedAppliedWork, err
 	}
+
 	return &retrievedAppliedWork, nil
 }
 func retrieveWork(workNamespace string, workName string) (*workapi.Work, error) {
@@ -416,6 +412,7 @@ func retrieveWork(workNamespace string, workName string) (*workapi.Work, error) 
 	if err != nil {
 		return nil, err
 	}
+
 	return &workRetrieved, nil
 }
 func safeDeleteWork(work *workapi.Work) error {
@@ -428,8 +425,10 @@ func safeDeleteWork(work *workapi.Work) error {
 		if err != nil {
 			return err
 		}
+
 		return nil
 	}
+
 	return err
 }
 func updateWork(work *workapi.Work) (*workapi.Work, error) {
@@ -442,5 +441,6 @@ func updateWork(work *workapi.Work) (*workapi.Work, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	return updatedWork, err
 }

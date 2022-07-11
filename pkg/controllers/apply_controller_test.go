@@ -75,7 +75,7 @@ var _ = Describe("Work Controller", func() {
 
 			work := &workv1alpha1.Work{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      "test-work",
+					Name:      "configmap-work",
 					Namespace: workNamespace,
 				},
 				Spec: workv1alpha1.WorkSpec{
@@ -94,6 +94,7 @@ var _ = Describe("Work Controller", func() {
 
 			Eventually(func() error {
 				_, err := k8sClient.CoreV1().ConfigMaps(cmNamespace).Get(context.Background(), cmName, metav1.GetOptions{})
+
 				return err
 			}, timeout, interval).Should(Succeed())
 
