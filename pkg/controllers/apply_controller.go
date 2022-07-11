@@ -21,6 +21,7 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+
 	"github.com/pkg/errors"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -77,6 +78,7 @@ type ApplyWorkReconciler struct {
 	concurrency        int
 }
 
+// applyResult contains the result of a manifest being applied.
 type applyResult struct {
 	identifier workv1alpha1.ResourceIdentifier
 	generation int64
@@ -191,6 +193,7 @@ func (r *ApplyWorkReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	return ctrl.Result{}, nil
 }
 
+// applyManifests processes a given set of Manifests by: setting ownership, validating the manifest, and passing it on for application to the cluster.
 func (r *ApplyWorkReconciler) applyManifests(ctx context.Context, manifests []workv1alpha1.Manifest, owner metav1.OwnerReference) []applyResult {
 	var results []applyResult
 
@@ -198,7 +201,7 @@ func (r *ApplyWorkReconciler) applyManifests(ctx context.Context, manifests []wo
 		result := applyResult{
 			identifier: workv1alpha1.ResourceIdentifier{Ordinal: index},
 		}
-		gvr, rawObj, err := r.decodeUnstructured(manifest)
+		gvr, rawObj, err := r.decodeManifest(manifest)
 		if err != nil {
 			result.err = err
 		} else {
@@ -229,7 +232,8 @@ func (r *ApplyWorkReconciler) applyManifests(ctx context.Context, manifests []wo
 	return results
 }
 
-func (r *ApplyWorkReconciler) decodeUnstructured(manifest workv1alpha1.Manifest) (schema.GroupVersionResource, *unstructured.Unstructured, error) {
+// Decodes the manifest into usable structs.
+func (r *ApplyWorkReconciler) decodeManifest(manifest workv1alpha1.Manifest) (schema.GroupVersionResource, *unstructured.Unstructured, error) {
 	unstructuredObj := &unstructured.Unstructured{}
 	err := unstructuredObj.UnmarshalJSON(manifest.Raw)
 	if err != nil {
@@ -244,6 +248,7 @@ func (r *ApplyWorkReconciler) decodeUnstructured(manifest workv1alpha1.Manifest)
 	return mapping.Resource, unstructuredObj, nil
 }
 
+// Determines if an unstructured manifest object can & should be applied. If so, it applies (creates) the resource on the cluster.
 func (r *ApplyWorkReconciler) applyUnstructured(
 	ctx context.Context,
 	gvr schema.GroupVersionResource,
