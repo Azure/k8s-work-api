@@ -43,10 +43,10 @@ var _ = Describe("work reconciler", func() {
 	const interval = time.Second * 1
 
 	BeforeEach(func() {
-		workName = utilrand.String(5)
-		workNamespace = utilrand.String(5)
-		resourceName = utilrand.String(5)
-		resourceNamespace = utilrand.String(5)
+		workName = utilrand.String(8)
+		workNamespace = utilrand.String(8)
+		resourceName = utilrand.String(8)
+		resourceNamespace = utilrand.String(8)
 
 		wns := &corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
@@ -209,10 +209,8 @@ var _ = Describe("work reconciler", func() {
 					RawExtension: runtime.RawExtension{Object: &cm},
 				},
 			}
-			Eventually(func() bool {
-				err = workClient.Update(context.Background(), &currentWork)
-				return err == nil
-			}, timeout, interval).Should(BeTrue())
+			err = workClient.Update(context.Background(), &currentWork)
+			Expect(err).ToNot(HaveOccurred())
 
 			By("Work status", func() {
 				Eventually(func() bool {
