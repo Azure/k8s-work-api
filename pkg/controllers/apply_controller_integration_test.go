@@ -209,8 +209,10 @@ var _ = Describe("work reconciler", func() {
 					RawExtension: runtime.RawExtension{Object: &cm},
 				},
 			}
-			err = workClient.Update(context.Background(), &currentWork)
-			Expect(err).ToNot(HaveOccurred())
+			Eventually(func() bool {
+				err = workClient.Update(context.Background(), &currentWork)
+				return err == nil
+			}, timeout, interval).Should(BeTrue())
 
 			By("Work status", func() {
 				Eventually(func() bool {
