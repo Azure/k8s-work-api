@@ -43,10 +43,10 @@ var _ = Describe("work reconciler", func() {
 	const interval = time.Second * 1
 
 	BeforeEach(func() {
-		workName = utilrand.String(8)
-		workNamespace = utilrand.String(8)
-		resourceName = utilrand.String(8)
-		resourceNamespace = utilrand.String(8)
+		workName = utilrand.String(5)
+		workNamespace = utilrand.String(5)
+		resourceName = utilrand.String(5)
+		resourceNamespace = utilrand.String(5)
 
 		wns := &corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
