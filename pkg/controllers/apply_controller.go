@@ -214,7 +214,7 @@ func (r *ApplyWorkReconciler) applyManifests(ctx context.Context, manifests []wo
 
 			// TODO: add webhooks to block any manifest that has owner reference
 			rawObj.SetOwnerReferences([]metav1.OwnerReference{owner})
-			obj, result.updated, result.err = r.applyUnstructured(ctx, gvr, rawObj, &kLogObjRef)
+			obj, result.updated, result.err = r.applyUnstructured(ctx, gvr, rawObj)
 
 			if result.err == nil {
 				result.generation = obj.GetGeneration()
@@ -252,8 +252,12 @@ func (r *ApplyWorkReconciler) decodeManifest(manifest workv1alpha1.Manifest) (sc
 func (r *ApplyWorkReconciler) applyUnstructured(
 	ctx context.Context,
 	gvr schema.GroupVersionResource,
-	manifestObj *unstructured.Unstructured,
-	kLogObjRef *klog.ObjectRef) (*unstructured.Unstructured, bool, error) {
+	manifestObj *unstructured.Unstructured) (*unstructured.Unstructured, bool, error) {
+
+	kLogObjRef := klog.ObjectRef{
+		Name:      manifestObj.GetName(),
+		Namespace: manifestObj.GetName(),
+	}
 
 	err := setSpecHashAnnotation(manifestObj)
 	if err != nil {
