@@ -198,6 +198,7 @@ var _ = Describe("work reconciler", func() {
 
 			var err error
 			currentWork := workv1alpha1.Work{}
+			time.Sleep(5 * time.Second)
 			err = workClient.Get(context.Background(), types.NamespacedName{
 				Namespace: workNamespace,
 				Name:      workName,
