@@ -111,6 +111,7 @@ var _ = Describe("work reconciler", func() {
 					Namespace: workNamespace,
 					Name:      workName,
 				}, &currentWork)
+
 				Expect(err).ToNot(HaveOccurred())
 				return controllerutil.ContainsFinalizer(&currentWork, workFinalizer)
 			}, timeout, interval).Should(BeTrue())
@@ -123,6 +124,7 @@ var _ = Describe("work reconciler", func() {
 					Namespace: workNamespace,
 					Name:      workName,
 				}, &appliedWorkObject)
+
 				if err == nil {
 					return appliedWorkObject.Spec.WorkName == workName
 				}
@@ -147,6 +149,7 @@ var _ = Describe("work reconciler", func() {
 					Namespace: workNamespace,
 					Name:      workName,
 				}, &currentWork)
+
 				if err == nil {
 					if len(currentWork.Status.ManifestConditions) > 0 {
 						return currentWork.Status.ManifestConditions[0].Identifier.Name == resourceName &&
@@ -165,6 +168,7 @@ var _ = Describe("work reconciler", func() {
 					Namespace: workNamespace,
 					Name:      workName,
 				}, &appliedWorkObject)
+
 				if err == nil {
 					if len(appliedWorkObject.Status.AppliedResources) > 0 {
 						return appliedWorkObject.Status.AppliedResources[0].Name == resourceName &&
@@ -215,6 +219,7 @@ var _ = Describe("work reconciler", func() {
 						Namespace: workNamespace,
 						Name:      workName,
 					}, &currentWork)
+
 					if err == nil {
 						if len(currentWork.Status.Conditions) > 0 && len(currentWork.Status.ManifestConditions) > 0 {
 							return currentWork.Status.ManifestConditions[0].Identifier.Name == cm.Name &&
