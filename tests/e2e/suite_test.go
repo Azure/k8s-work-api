@@ -49,7 +49,7 @@ var (
 	spokeKubeClient         kubernetes.Interface
 	spokeWorkClient         workclientset.Interface
 
-	//go:embed testmanifests
+	//go:embed manifests
 	testManifestFiles embed.FS
 
 	genericScheme = runtime.NewScheme()
