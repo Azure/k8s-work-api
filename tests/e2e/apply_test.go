@@ -243,8 +243,11 @@ var WorkDeletedContext = func(testSpec testSpec) bool {
 			Expect(err).ToNot(HaveOccurred())
 
 			By("verifying the manifest was applied", func() {
-				_, err = spokeKubeClient.CoreV1().Secrets(testSpec.ManifestDetails[0].ObjMeta.Namespace).Get(context.Background(), testSpec.ManifestDetails[0].ObjMeta.Name, metav1.GetOptions{})
-				Expect(err).ToNot(HaveOccurred())
+				Eventually(func() error {
+					_, err = spokeKubeClient.CoreV1().Secrets(testSpec.ManifestDetails[0].ObjMeta.Namespace).Get(context.Background(), testSpec.ManifestDetails[0].ObjMeta.Name, metav1.GetOptions{})
+
+					return err
+				}, eventuallyTimeout, eventuallyInterval).ShouldNot(HaveOccurred())
 			})
 
 			By("deleting the Work resource", func() {
