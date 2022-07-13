@@ -387,15 +387,9 @@ func createWork(workName string, workNamespace string, manifestFiles []string) (
 	}
 
 	addManifestsToWorkSpec(manifestFiles, &work.Spec)
-
-	newWork := workapi.Work{}
 	createError = hubWorkClient.Create(context.Background(), work)
-	_ = hubWorkClient.Get(context.Background(), types.NamespacedName{
-		Namespace: workNamespace,
-		Name:      workName,
-	}, &newWork)
 
-	return &newWork, createError
+	return work, createError
 }
 func retrieveAppliedWork(resourceName string) (*workapi.AppliedWork, error) {
 	retrievedAppliedWork := workapi.AppliedWork{}
@@ -417,16 +411,13 @@ func retrieveWork(workNamespace string, workName string) (*workapi.Work, error) 
 }
 func safeDeleteWork(work *workapi.Work) error {
 	// ToDo - Replace with proper Eventually.
+	Eventually(func() error {
+		return hubWorkClient.Delete(context.Background(), work)
+	}, eventuallyTimeout, eventuallyInterval).Should(BeNil())
 	time.Sleep(1 * time.Second)
-	currentWork := workapi.Work{}
-	err := hubWorkClient.Get(context.Background(), types.NamespacedName{Name: work.Name, Namespace: work.Namespace}, &currentWork)
-	if err == nil {
-		err = hubWorkClient.Delete(context.Background(), &currentWork)
-		if err != nil {
-			return err
-		}
-
-		return nil
+	err := hubWorkClient.Delete(context.Background(), work)
+	if err != nil {
+		return err
 	}
 
 	return err
@@ -436,11 +427,5 @@ func updateWork(work *workapi.Work) (*workapi.Work, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	updatedWork, err := retrieveWork(work.Namespace, work.Name)
-	if err != nil {
-		return nil, err
-	}
-
-	return updatedWork, err
+	return work, err
 }

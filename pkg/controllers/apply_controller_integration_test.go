@@ -196,7 +196,7 @@ var _ = Describe("work reconciler", func() {
 				},
 			}
 
-			Eventually(func() bool {
+			Eventually(func() error {
 				var err error
 				currentWork := workv1alpha1.Work{}
 				err = workClient.Get(context.Background(), types.NamespacedName{
@@ -210,10 +210,8 @@ var _ = Describe("work reconciler", func() {
 						RawExtension: runtime.RawExtension{Object: &cm},
 					},
 				}
-				err = workClient.Update(context.Background(), &currentWork)
-
-				return err == nil
-			}, timeout, interval).Should(BeTrue())
+				return workClient.Update(context.Background(), &currentWork)
+			}, timeout, interval).Should(BeNil())
 
 			By("Work status", func() {
 				Eventually(func() bool {
