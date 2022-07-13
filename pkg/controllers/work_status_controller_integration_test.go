@@ -150,7 +150,9 @@ var _ = Describe("Work Status Reconciler", func() {
 
 			Eventually(func() bool {
 				err := workClient.Update(context.Background(), &appliedWork)
-				Expect(err).ToNot(HaveOccurred())
+				if err != nil {
+					return false
+				}
 
 				return len(appliedWork.Status.AppliedResources) > 0
 			}, timeout, interval).Should(BeTrue())
