@@ -194,19 +194,20 @@ var _ = Describe("work reconciler", func() {
 
 			var err error
 			currentWork := workv1alpha1.Work{}
-			err = workClient.Get(context.Background(), types.NamespacedName{
-				Namespace: workNamespace,
-				Name:      workName,
-			}, &currentWork)
-			Expect(err).ToNot(HaveOccurred())
+			Eventually(func() error {
+				err = workClient.Get(context.Background(), types.NamespacedName{
+					Namespace: workNamespace,
+					Name:      workName,
+				}, &currentWork)
+				Expect(err).ToNot(HaveOccurred())
 
-			currentWork.Spec.Workload.Manifests = []workv1alpha1.Manifest{
-				{
-					RawExtension: runtime.RawExtension{Object: &cm},
-				},
-			}
-			err = workClient.Update(context.Background(), &currentWork)
-			Expect(err).ToNot(HaveOccurred())
+				currentWork.Spec.Workload.Manifests = []workv1alpha1.Manifest{
+					{
+						RawExtension: runtime.RawExtension{Object: &cm},
+					},
+				}
+				return workClient.Update(context.Background(), &currentWork)
+			}, timeout, interval).Should(BeNil())
 
 			By("Work status", func() {
 				Eventually(func() bool {
