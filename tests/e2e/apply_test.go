@@ -209,9 +209,9 @@ var WorkUpdateWithModifiedManifestContext = func(testSpec testSpec) bool {
 					err = json.Unmarshal(work.Spec.Workload.Manifests[0].Raw, &configMap)
 					configMap.Data[newDataKey] = newDataValue
 
-					rawUpdatedManifest, err := json.Marshal(configMap)
+					rawUpdatedManifest, _ := json.Marshal(configMap)
 
-					obj, _, err := genericCodec.Decode(rawUpdatedManifest, nil, nil)
+					obj, _, _ := genericCodec.Decode(rawUpdatedManifest, nil, nil)
 
 					work.Spec.Workload.Manifests[0].Object = obj
 					work.Spec.Workload.Manifests[0].Raw = rawUpdatedManifest
