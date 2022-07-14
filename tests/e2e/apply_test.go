@@ -26,7 +26,6 @@ type manifestDetails struct {
 const (
 	eventuallyTimeout  = 10 // seconds
 	eventuallyInterval = 1  // seconds
-	workNamePrefix     = "work-"
 )
 
 var _ = Describe("Work creation", func() {
@@ -106,31 +105,27 @@ var WorkCreatedContext = func(description string, manifestFiles []string) bool {
 		})
 
 		It("should have created: a respective AppliedWork, and the resources specified in the Work's manifests", func() {
-			By("verifying an AppliedWork was created", func() {
-				Eventually(func() error {
-					_, err := spokeWorkClient.MulticlusterV1alpha1().AppliedWorks().Get(context.Background(), createdWork.Name, metav1.GetOptions{})
-					return err
-				}, eventuallyTimeout, eventuallyInterval).ShouldNot(HaveOccurred())
-			})
+			By("verifying an AppliedWork was created")
+			Eventually(func() error {
+				_, err := spokeWorkClient.MulticlusterV1alpha1().AppliedWorks().Get(context.Background(), createdWork.Name, metav1.GetOptions{})
+				return err
+			}, eventuallyTimeout, eventuallyInterval).ShouldNot(HaveOccurred())
 
-			By("verifying a deployment was created", func() {
-				Eventually(func() error {
-					_, err := spokeKubeClient.AppsV1().Deployments(mDetails[0].ObjMeta.Namespace).
-						Get(context.Background(), mDetails[0].ObjMeta.Name, metav1.GetOptions{})
+			By("verifying a deployment was created")
+			Eventually(func() error {
+				_, err := spokeKubeClient.AppsV1().Deployments(mDetails[0].ObjMeta.Namespace).
+					Get(context.Background(), mDetails[0].ObjMeta.Name, metav1.GetOptions{})
 
-					return err
-				}, eventuallyTimeout, eventuallyInterval).ShouldNot(HaveOccurred())
-			})
+				return err
+			}, eventuallyTimeout, eventuallyInterval).ShouldNot(HaveOccurred())
 
-			By("verifying a service was created", func() {
-				Eventually(func() error {
-					_, err := spokeKubeClient.CoreV1().Services(mDetails[1].ObjMeta.Namespace).
-						Get(context.Background(), mDetails[1].ObjMeta.Name, metav1.GetOptions{})
+			By("verifying a service was created")
+			Eventually(func() error {
+				_, err := spokeKubeClient.CoreV1().Services(mDetails[1].ObjMeta.Namespace).
+					Get(context.Background(), mDetails[1].ObjMeta.Name, metav1.GetOptions{})
 
-					return err
-				}, eventuallyTimeout, eventuallyInterval).ShouldNot(HaveOccurred())
-			})
-
+				return err
+			}, eventuallyTimeout, eventuallyInterval).ShouldNot(HaveOccurred())
 		})
 	})
 }
@@ -161,6 +156,7 @@ var WorkCreatedWithCRDContext = func(description string, manifestFiles []string)
 
 		It("should have created the CRD within the spoke", func() {
 			Eventually(func() error {
+				By("verifying the CRD exists within the spoke")
 				_, err = spokeApiExtensionClient.ApiextensionsV1().CustomResourceDefinitions().Get(context.Background(), manifestDetails[0].ObjMeta.Name, metav1.GetOptions{})
 
 				return err
@@ -196,31 +192,30 @@ var WorkUpdateWithDependencyContext = func(description string, initialManifestFi
 		})
 
 		It("should have created the ConfigMap in the new namespace", func() {
-			By("retrieving the existing work and updating it by adding new manifests", func() {
-				Eventually(func() error {
-					createdWork, err = retrieveWork(createdWork.Namespace, createdWork.Name)
-					Expect(err).ToNot(HaveOccurred())
+			By("retrieving the existing work and updating it by adding new manifests")
+			Eventually(func() error {
+				createdWork, err = retrieveWork(createdWork.Namespace, createdWork.Name)
+				Expect(err).ToNot(HaveOccurred())
 
-					createdWork.Spec.Workload.Manifests = append(createdWork.Spec.Workload.Manifests, addedManifestDetails[0].Manifest, addedManifestDetails[1].Manifest)
-					createdWork, err = hubWorkClient.MulticlusterV1alpha1().Works(createdWork.Namespace).Update(context.Background(), createdWork, metav1.UpdateOptions{})
+				createdWork.Spec.Workload.Manifests = append(createdWork.Spec.Workload.Manifests, addedManifestDetails[0].Manifest, addedManifestDetails[1].Manifest)
+				createdWork, err = hubWorkClient.MulticlusterV1alpha1().Works(createdWork.Namespace).Update(context.Background(), createdWork, metav1.UpdateOptions{})
 
-					return err
-				}, eventuallyTimeout, eventuallyInterval).ShouldNot(HaveOccurred())
-			})
-			By("checking if the ConfigMap was created in the new namespace", func() {
-				Eventually(func() error {
-					_, err := spokeKubeClient.CoreV1().ConfigMaps(addedManifestDetails[0].ObjMeta.Namespace).Get(context.Background(), addedManifestDetails[0].ObjMeta.Name, metav1.GetOptions{})
+				return err
+			}, eventuallyTimeout, eventuallyInterval).ShouldNot(HaveOccurred())
 
-					return err
-				}, eventuallyTimeout, eventuallyInterval).ShouldNot(HaveOccurred())
-			})
-			By("checking if the new Namespace was created ", func() {
-				Eventually(func() error {
-					_, err := spokeKubeClient.CoreV1().Namespaces().Get(context.Background(), addedManifestDetails[1].ObjMeta.Name, metav1.GetOptions{})
+			By("checking if the ConfigMap was created in the new namespace")
+			Eventually(func() error {
+				_, err := spokeKubeClient.CoreV1().ConfigMaps(addedManifestDetails[0].ObjMeta.Namespace).Get(context.Background(), addedManifestDetails[0].ObjMeta.Name, metav1.GetOptions{})
 
-					return err
-				}, eventuallyTimeout, eventuallyInterval).ShouldNot(HaveOccurred())
-			})
+				return err
+			}, eventuallyTimeout, eventuallyInterval).ShouldNot(HaveOccurred())
+
+			By("checking if the new Namespace was created ")
+			Eventually(func() error {
+				_, err := spokeKubeClient.CoreV1().Namespaces().Get(context.Background(), addedManifestDetails[1].ObjMeta.Name, metav1.GetOptions{})
+
+				return err
+			}, eventuallyTimeout, eventuallyInterval).ShouldNot(HaveOccurred())
 		})
 	})
 }
@@ -255,34 +250,32 @@ var WorkUpdateWithModifiedManifestContext = func(description string, manifestFil
 		})
 
 		It("should reapply the manifest's updated spec on the spoke cluster", func() {
-			By("retrieving the existing work and modifying the manifest", func() {
-				Eventually(func() error {
-					createdWork, err = retrieveWork(createdWork.Namespace, createdWork.Name)
+			By("retrieving the existing work and modifying the manifest")
+			Eventually(func() error {
+				createdWork, err = retrieveWork(createdWork.Namespace, createdWork.Name)
 
-					// Extract and modify the ConfigMap by adding a new key value pair.
-					err = json.Unmarshal(createdWork.Spec.Workload.Manifests[0].Raw, &configMap)
-					configMap.Data[newDataKey] = newDataValue
+				// Extract and modify the ConfigMap by adding a new key value pair.
+				err = json.Unmarshal(createdWork.Spec.Workload.Manifests[0].Raw, &configMap)
+				configMap.Data[newDataKey] = newDataValue
 
-					rawUpdatedManifest, _ := json.Marshal(configMap)
+				rawUpdatedManifest, _ := json.Marshal(configMap)
 
-					obj, _, _ := genericCodec.Decode(rawUpdatedManifest, nil, nil)
+				obj, _, _ := genericCodec.Decode(rawUpdatedManifest, nil, nil)
 
-					createdWork.Spec.Workload.Manifests[0].Object = obj
-					createdWork.Spec.Workload.Manifests[0].Raw = rawUpdatedManifest
+				createdWork.Spec.Workload.Manifests[0].Object = obj
+				createdWork.Spec.Workload.Manifests[0].Raw = rawUpdatedManifest
 
-					createdWork, err = hubWorkClient.MulticlusterV1alpha1().Works(createdWork.Namespace).Update(context.Background(), createdWork, metav1.UpdateOptions{})
+				createdWork, err = hubWorkClient.MulticlusterV1alpha1().Works(createdWork.Namespace).Update(context.Background(), createdWork, metav1.UpdateOptions{})
 
-					return err
-				}, eventuallyTimeout, eventuallyInterval).ShouldNot(HaveOccurred())
-			})
+				return err
+			}, eventuallyTimeout, eventuallyInterval).ShouldNot(HaveOccurred())
 
-			By("verifying if the manifest was reapplied", func() {
-				Eventually(func() bool {
-					configMap, _ := spokeKubeClient.CoreV1().ConfigMaps(manifestDetails[0].ObjMeta.Namespace).Get(context.Background(), manifestDetails[0].ObjMeta.Name, metav1.GetOptions{})
+			By("verifying if the manifest was reapplied")
+			Eventually(func() bool {
+				configMap, _ := spokeKubeClient.CoreV1().ConfigMaps(manifestDetails[0].ObjMeta.Namespace).Get(context.Background(), manifestDetails[0].ObjMeta.Name, metav1.GetOptions{})
 
-					return configMap.Data[newDataKey] == newDataValue
-				}, eventuallyTimeout, eventuallyInterval).Should(BeTrue())
-			})
+				return configMap.Data[newDataKey] == newDataValue
+			}, eventuallyTimeout, eventuallyInterval).Should(BeTrue())
 		})
 	})
 }
@@ -316,58 +309,54 @@ var WorkUpdateWithReplacedManifestsContext = func(description string, originalMa
 		})
 
 		It("should have deleted the original Work's resources, and created new resources with the replaced manifests", func() {
-			By("getting the respective AppliedWork", func() {
-				Eventually(func() int {
-					appliedWork, _ = spokeWorkClient.MulticlusterV1alpha1().AppliedWorks().Get(context.Background(), createdWork.Name, metav1.GetOptions{})
+			By("getting the respective AppliedWork")
+			Eventually(func() int {
+				appliedWork, _ = spokeWorkClient.MulticlusterV1alpha1().AppliedWorks().Get(context.Background(), createdWork.Name, metav1.GetOptions{})
 
-					return len(appliedWork.Status.AppliedResources)
-				}, eventuallyTimeout, eventuallyInterval).Should(Equal(len(createdWork.Spec.Workload.Manifests)))
-			})
+				return len(appliedWork.Status.AppliedResources)
+			}, eventuallyTimeout, eventuallyInterval).Should(Equal(len(createdWork.Spec.Workload.Manifests)))
 
-			By("updating the Work resource with replaced manifests", func() {
-				Eventually(func() error {
-					createdWork, err = hubWorkClient.MulticlusterV1alpha1().Works(createdWork.Namespace).Get(context.Background(), createdWork.Name, metav1.GetOptions{})
-					createdWork.Spec.Workload.Manifests = nil
-					for _, mD := range replacedManifestDetails {
-						createdWork.Spec.Workload.Manifests = append(createdWork.Spec.Workload.Manifests, mD.Manifest)
-					}
+			By("updating the Work resource with replaced manifests")
+			Eventually(func() error {
+				createdWork, err = hubWorkClient.MulticlusterV1alpha1().Works(createdWork.Namespace).Get(context.Background(), createdWork.Name, metav1.GetOptions{})
+				createdWork.Spec.Workload.Manifests = nil
+				for _, mD := range replacedManifestDetails {
+					createdWork.Spec.Workload.Manifests = append(createdWork.Spec.Workload.Manifests, mD.Manifest)
+				}
 
-					createdWork, err = hubWorkClient.MulticlusterV1alpha1().Works(createdWork.Namespace).Update(context.Background(), createdWork, metav1.UpdateOptions{})
+				createdWork, err = hubWorkClient.MulticlusterV1alpha1().Works(createdWork.Namespace).Update(context.Background(), createdWork, metav1.UpdateOptions{})
 
-					return err
-				}, eventuallyTimeout, eventuallyInterval).ShouldNot(HaveOccurred())
-			})
+				return err
+			}, eventuallyTimeout, eventuallyInterval).ShouldNot(HaveOccurred())
 
-			By("verifying all the initial Work owned resources were deleted", func() {
-				Eventually(func() bool {
-					for resourcesStillExist == true {
-						for _, ar := range appliedWork.Status.AppliedResources {
-							gvr := schema.GroupVersionResource{
-								Group:    ar.Group,
-								Version:  ar.Version,
-								Resource: ar.Resource,
-							}
+			By("verifying all the initial Work owned resources were deleted")
+			Eventually(func() bool {
+				for resourcesStillExist == true {
+					for _, ar := range appliedWork.Status.AppliedResources {
+						gvr := schema.GroupVersionResource{
+							Group:    ar.Group,
+							Version:  ar.Version,
+							Resource: ar.Resource,
+						}
 
-							_, err = spokeDynamicClient.Resource(gvr).Namespace(ar.Namespace).Get(context.Background(), ar.Name, metav1.GetOptions{})
-							if err != nil {
-								resourcesStillExist = false
-							} else {
-								resourcesStillExist = true
-							}
+						_, err = spokeDynamicClient.Resource(gvr).Namespace(ar.Namespace).Get(context.Background(), ar.Name, metav1.GetOptions{})
+						if err != nil {
+							resourcesStillExist = false
+						} else {
+							resourcesStillExist = true
 						}
 					}
+				}
 
-					return resourcesStillExist
-				}, eventuallyTimeout, eventuallyInterval).ShouldNot(BeTrue())
-			})
+				return resourcesStillExist
+			}, eventuallyTimeout, eventuallyInterval).ShouldNot(BeTrue())
 
-			By("verifying the new manifest was applied", func() {
-				Eventually(func() error {
-					_, err = spokeKubeClient.CoreV1().ConfigMaps(replacedManifestDetails[0].ObjMeta.Namespace).Get(context.Background(), replacedManifestDetails[0].ObjMeta.Name, metav1.GetOptions{})
+			By("verifying the new manifest was applied")
+			Eventually(func() error {
+				_, err = spokeKubeClient.CoreV1().ConfigMaps(replacedManifestDetails[0].ObjMeta.Namespace).Get(context.Background(), replacedManifestDetails[0].ObjMeta.Name, metav1.GetOptions{})
 
-					return err
-				}, eventuallyTimeout, eventuallyInterval).ShouldNot(HaveOccurred())
-			})
+				return err
+			}, eventuallyTimeout, eventuallyInterval).ShouldNot(HaveOccurred())
 		})
 	})
 }
@@ -397,26 +386,23 @@ var WorkDeletedContext = func(description string, manifestFiles []string) bool {
 		})
 
 		It("should delete the Work and verify the resource has been garbage collected", func() {
-			By("verifying the manifest was applied", func() {
-				Eventually(func() error {
-					_, err = spokeKubeClient.CoreV1().Secrets(manifestDetails[0].ObjMeta.Namespace).Get(context.Background(), manifestDetails[0].ObjMeta.Name, metav1.GetOptions{})
+			By("verifying the manifest was applied")
+			Eventually(func() error {
+				_, err = spokeKubeClient.CoreV1().Secrets(manifestDetails[0].ObjMeta.Namespace).Get(context.Background(), manifestDetails[0].ObjMeta.Name, metav1.GetOptions{})
 
-					return err
-				}, eventuallyTimeout, eventuallyInterval).ShouldNot(HaveOccurred())
-			})
+				return err
+			}, eventuallyTimeout, eventuallyInterval).ShouldNot(HaveOccurred())
 
-			By("deleting the Work resource", func() {
-				err = deleteWorkResource(createdWork.Namespace, createdWork.Name)
-				Expect(err).ToNot(HaveOccurred())
-			})
+			By("deleting the Work resource")
+			err = deleteWorkResource(createdWork.Namespace, createdWork.Name)
+			Expect(err).ToNot(HaveOccurred())
 
-			By("verifying the resource was garbage collected", func() {
-				Eventually(func() error {
-					err = spokeKubeClient.CoreV1().Secrets(manifestDetails[0].ObjMeta.Namespace).Delete(context.Background(), manifestDetails[0].ObjMeta.Name, metav1.DeleteOptions{})
+			By("verifying the resource was garbage collected")
+			Eventually(func() error {
+				err = spokeKubeClient.CoreV1().Secrets(manifestDetails[0].ObjMeta.Namespace).Delete(context.Background(), manifestDetails[0].ObjMeta.Name, metav1.DeleteOptions{})
 
-					return err
-				}, eventuallyTimeout, eventuallyInterval).ShouldNot(HaveOccurred())
-			})
+				return err
+			}, eventuallyTimeout, eventuallyInterval).ShouldNot(HaveOccurred())
 		})
 
 	})
