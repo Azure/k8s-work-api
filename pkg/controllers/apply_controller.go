@@ -46,26 +46,8 @@ import (
 )
 
 const (
-	workFieldManagerName                     = "work-api-agent"
-	eventReasonManifestApplySucceeded        = "ManifestApplySucceeded"
-	eventReasonReconciliationAggregated      = "WorkReconciliationAggregated"
-	eventReasonResourceNotFound              = "ResourceNotFound"
-	eventReasonResourceNotOwnedByWorkAPI     = "ResourceNotOwnedByWorkAPI"
-	eventReasonResourceStatusUpdateFailed    = "ResourceStatusUpdateFailed"
-	eventReasonResourceUpdateStatusSucceeded = "ResourceStatusUpdateSucceeded"
-	eventReasonWorkResourcePatchSucceeded    = "ResourcePatchedSucceeded"
-	eventReasonWorkResourcePatchFailed       = "ResourcePatchFailed"
-
-	messageResourceCreateSucceeded   = "resource create succeeded"
-	messageResourceJSONMarshalFailed = "resource JSON marshaling failed"
-	messageResourceNotOwnedByWorkAPI = "resource not owned by Work-API"
-	messageResourcePatchFailed       = "resource patch failed"
-	messageResourcePatchSucceeded    = "resource patch succeeded"
-	messageResourceRetrieveFailed    = "resource retrieval failed"
-	messageResourceStateInvalid      = "resource state is invalid"
-	messageResourceSpecModified      = "resource spec modified"
-	messageResourceUpdateFailed      = "resource update failed"
-	messageResourceUpdateSucceeded   = "resource update succeeded"
+	messageWorkApplyReconcileTriggered = "Work apply controller reconcile loop triggered"
+	messageWorkFinalizerMissing        = "the Work resource has no finalizer yet, it will be added"
 )
 
 // ApplyWorkReconciler reconciles a Work object
@@ -88,7 +70,7 @@ type applyResult struct {
 
 // Reconcile implement the control loop logic for Work object.
 func (r *ApplyWorkReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	klog.InfoS("work reconcile loop triggered", "item", req.NamespacedName)
+	klog.InfoS(messageWorkApplyReconcileTriggered, "item", req.NamespacedName)
 
 	work := &workv1alpha1.Work{}
 	err := r.client.Get(ctx, req.NamespacedName, work)
@@ -103,13 +85,13 @@ func (r *ApplyWorkReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	// do nothing if the finalizer is not present
 	// it ensures all maintained resources will be cleaned once work is deleted
 	if !controllerutil.ContainsFinalizer(work, workFinalizer) {
-		klog.InfoS("the Work has no finalizer yet, the Work finalize controller will create it", work.Kind, kLogObjRef)
+		klog.InfoS(messageWorkFinalizerMissing, work.Kind, kLogObjRef)
 		return ctrl.Result{}, nil
 	}
 
 	// leave the finalizer to clean up
 	if !work.DeletionTimestamp.IsZero() {
-		klog.InfoS("the Work is being deleted, the Work finalize controller will garbage collect the resource", work.Kind, kLogObjRef)
+		klog.InfoS(messageResourceDeleting, work.Kind, kLogObjRef)
 		return ctrl.Result{}, nil
 	}
 
@@ -123,8 +105,8 @@ func (r *ApplyWorkReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			v1.EventTypeWarning,
 			eventReasonResourceNotFound,
 			messageResourceRetrieveFailed+", %s=%s",
-			"AppliedWork",
-			work.Name)
+			"AppliedWork", work.Name)
+
 		return ctrl.Result{}, errors.Wrap(err, fmt.Sprintf(messageResourceRetrieveFailed+", %s=%s", "AppliedWork", work.Name))
 	}
 
@@ -170,22 +152,19 @@ func (r *ApplyWorkReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	if err != nil {
 		klog.ErrorS(err, messageResourceUpdateFailed, work.Kind, kLogObjRef)
-		r.recorder.Eventf(work, v1.EventTypeWarning, eventReasonResourceStatusUpdateFailed, messageResourceUpdateFailed+", %s=%s/%s", work.Kind, work.Namespace, work.Name)
+		r.recorder.Event(work, v1.EventTypeWarning, eventReasonResourceStatusUpdateFailed, messageResourceUpdateFailed)
 		errs = append(errs, err)
 	} else {
-		r.recorder.Eventf(work, v1.EventTypeNormal, eventReasonResourceUpdateStatusSucceeded, messageResourceUpdateSucceeded+", %s=%s/%s", work.Kind, work.Namespace, work.Name)
+		r.recorder.Event(work, v1.EventTypeNormal, eventReasonResourceUpdateStatusSucceeded, messageResourceUpdateSucceeded)
 	}
 
 	if len(errs) != 0 {
-		klog.InfoS("manifest application is incomplete; Work will be queued for another reconciliation", work.Kind, kLogObjRef)
-		r.recorder.Eventf(
+		klog.InfoS(messageManifestApplyIncomplete, work.Kind, kLogObjRef)
+		r.recorder.Event(
 			work,
 			v1.EventTypeWarning,
-			eventReasonReconciliationAggregated,
-			"Not all manifests were applied; queued for another reconciliation. %s=%s/%s",
-			work.Kind,
-			work.Namespace,
-			work.Name)
+			eventReasonReconcileIncomplete,
+			messageManifestApplyIncomplete)
 
 		return ctrl.Result{}, utilerrors.NewAggregate(errs)
 	}
@@ -219,12 +198,12 @@ func (r *ApplyWorkReconciler) applyManifests(ctx context.Context, manifests []wo
 			if result.err == nil {
 				result.generation = obj.GetGeneration()
 				if result.updated {
-					klog.V(5).InfoS("applied an unstructured object", "gvr", gvr, "obj", kLogObjRef, "new observedGeneration", result.generation)
+					klog.V(5).InfoS(messageManifestApplySucceeded, "gvr", gvr, "obj", kLogObjRef, "new ObservedGeneration", result.generation)
 				} else {
-					klog.V(8).InfoS("spec has not changed", "gvr", gvr, "obj", kLogObjRef)
+					klog.V(8).InfoS(messageManifestApplyUnwarranted, "gvr", gvr, "obj", kLogObjRef)
 				}
 			} else {
-				klog.ErrorS(err, "failed to apply an unstructured object", "gvr", gvr, "obj", kLogObjRef)
+				klog.ErrorS(err, messageManifestApplyFailed, "gvr", gvr, "obj", kLogObjRef)
 			}
 		}
 		results = append(results, result)
@@ -273,10 +252,11 @@ func (r *ApplyWorkReconciler) applyUnstructured(
 		actual, err := r.spokeDynamicClient.Resource(gvr).Namespace(manifestObj.GetNamespace()).Create(
 			ctx, manifestObj, metav1.CreateOptions{FieldManager: workFieldManagerName})
 
-		r.recorder.Eventf(
+		r.recorder.Event(
 			manifestObj,
 			v1.EventTypeNormal,
-			eventReasonManifestApplySucceeded, messageResourceCreateSucceeded+", gvr=%+v, obj=%+v", gvr, kLogObjRef)
+			eventReasonManifestApplySucceeded,
+			messageManifestApplySucceeded)
 
 		return actual, true, err
 	}
@@ -287,10 +267,10 @@ func (r *ApplyWorkReconciler) applyUnstructured(
 	if !hasSharedOwnerReference(curObj.GetOwnerReferences(), manifestObj.GetOwnerReferences()[0]) {
 		err = errors.New(messageResourceStateInvalid)
 		klog.ErrorS(err, messageResourceNotOwnedByWorkAPI, "gvr", gvr, "obj", kLogObjRef)
-		r.recorder.Eventf(manifestObj,
+		r.recorder.Event(manifestObj,
 			v1.EventTypeWarning,
 			eventReasonResourceNotOwnedByWorkAPI,
-			messageResourceNotOwnedByWorkAPI+", gvr=%+v, obj=%+v", gvr, kLogObjRef)
+			messageResourceNotOwnedByWorkAPI)
 
 		return nil, false, err
 	}
@@ -319,20 +299,20 @@ func (r *ApplyWorkReconciler) applyUnstructured(
 
 		if err != nil {
 			klog.ErrorS(err, messageResourcePatchFailed, "gvr", gvr, "obj", kLogObjRef)
-			r.recorder.Eventf(
+			r.recorder.Event(
 				manifestObj,
 				v1.EventTypeWarning,
-				eventReasonWorkResourcePatchFailed,
-				messageResourcePatchFailed+", gvr=%+v, obj=%+v", gvr, kLogObjRef)
+				eventReasonResourcePatchFailed,
+				messageResourcePatchFailed)
 
 			return nil, false, err
 		}
 		klog.V(5).InfoS(messageResourcePatchSucceeded, "gvr", gvr, "obj", kLogObjRef)
-		r.recorder.Eventf(
+		r.recorder.Event(
 			manifestObj,
 			v1.EventTypeNormal,
-			eventReasonWorkResourcePatchSucceeded,
-			messageResourcePatchSucceeded+", gvr=%+v, obj=%+v", gvr, kLogObjRef)
+			eventReasonResourcePatchSucceeded,
+			messageResourcePatchSucceeded)
 
 		return actual, true, err
 	}
@@ -409,9 +389,9 @@ func mergeOwnerReference(owners, newOwners []metav1.OwnerReference) []metav1.Own
 }
 
 // findManifestConditionByIdentifier return a ManifestCondition by identifier
-// 1. find the manifest condition with the whole identifier;
-// 2. if identifier only has ordinal and a matched cannot found, return nil
-// 3. try to find with properties other than ordinal in identifier
+// 1. Find the manifest condition with the whole identifier.
+// 2. If identifier only has ordinal, and a matched cannot be found, return nil.
+// 3. Try to find properties, other than the ordinal, within the identifier.
 func findManifestConditionByIdentifier(identifier workv1alpha1.ResourceIdentifier, manifestConditions []workv1alpha1.ManifestCondition) *workv1alpha1.ManifestCondition {
 	for _, manifestCondition := range manifestConditions {
 		if identifier == manifestCondition.Identifier {
