@@ -65,8 +65,7 @@ var _ = Describe("Work modification", func() {
 	WorkUpdateWithReplacedManifestsContext(
 		"with all manifests replaced",
 		[]string{
-			"manifests/test-deployment.yaml",
-			"manifests/test-service.yaml",
+			"manifests/test-secret.yaml",
 		},
 		[]string{
 			"manifests/test-configmap.yaml",
@@ -325,7 +324,7 @@ var WorkUpdateWithReplacedManifestsContext = func(description string, originalMa
 				appliedWork, _ = retrieveAppliedWork(createdWork.Name)
 
 				return len(appliedWork.Status.AppliedResources)
-			}, eventuallyTimeout, eventuallyInterval).Should(Equal(len(createdWork.Spec.Workload.Manifests)))
+			}, eventuallyTimeout, eventuallyInterval).Should(Equal(len(originalManifestDetails)))
 
 			By("updating the Work resource with replaced manifests")
 			Eventually(func() error {
