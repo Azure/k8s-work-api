@@ -7,10 +7,8 @@ const (
 	eventReasonAppliedWorkDeleted                  = "AppliedWorkDeleted"
 	eventReasonFinalizerAdded                      = "FinalizerAdded"
 	eventReasonFinalizerRemoved                    = "FinalizerRemoved"
-	eventReasonManifestApplyFailed                 = "ManifestApplyFailed"
 	eventReasonManifestApplySucceeded              = "ManifestApplySucceeded"
 	eventReasonReconcileIncomplete                 = "ReconciliationIncomplete"
-	eventReasonResourceCreateSucceeded             = "ResourceCreated"
 	eventReasonResourceGarbageCollectionComplete   = "ResourceGarbageCollectionComplete"
 	eventReasonResourceGarbageCollectionIncomplete = "ResourceGarbageCollectionIncomplete"
 	eventReasonResourceNotFound                    = "ResourceNotFound"
@@ -19,8 +17,6 @@ const (
 	eventReasonResourceUpdateStatusSucceeded       = "ResourceStatusUpdateSucceeded"
 	eventReasonResourcePatchFailed                 = "ResourcePatchFailed"
 	eventReasonResourcePatchSucceeded              = "ResourcePatchedSucceeded"
-	eventResourceUpdateFailed                      = "ResourceUpdateFailed"
-	eventReasonResourceUpdateSucceeded             = "ResourceUpdateSucceeded"
 
 	messageManifestApplyFailed                 = "manifest apply failed"
 	messageManifestApplyIncomplete             = "manifest apply incomplete; the respective Work will be queued again for reconciliation"
@@ -47,6 +43,4 @@ const (
 	messageResourceSpecModified                = "resource spec modified"
 	messageResourceStatusUpdateFailed          = "resource status update failed"
 	messageResourceStatusUpdateSucceeded       = "resource status update succeeded"
-	messageResourceUpdateFailed                = "resource update failed"
-	messageResourceUpdateSucceeded             = "resource update succeeded"
 )

@@ -99,8 +99,8 @@ func (r *FinalizeWorkReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		klog.ErrorS(err, messageResourceCreateFailed, "AppliedWork", kLogObjRef.Name)
 		return ctrl.Result{}, err
 	}
+	r.recorder.Event(appliedWork, corev1.EventTypeNormal, eventReasonAppliedWorkCreated, messageResourceCreateSucceeded)
 
-	r.recorder.Event(appliedWork, corev1.EventTypeNormal, eventReasonResourceCreateSucceeded, messageResourceCreateSucceeded)
 	work.Finalizers = append(work.Finalizers, workFinalizer)
 	if err = r.client.Update(ctx, work, &client.UpdateOptions{}); err == nil {
 		r.recorder.Eventf(
