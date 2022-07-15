@@ -151,11 +151,11 @@ func (r *ApplyWorkReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	err = r.client.Status().Update(ctx, work, &client.UpdateOptions{})
 
 	if err != nil {
-		klog.ErrorS(err, messageResourceUpdateFailed, work.Kind, kLogObjRef)
-		r.recorder.Event(work, v1.EventTypeWarning, eventReasonResourceStatusUpdateFailed, messageResourceUpdateFailed)
+		klog.ErrorS(err, messageResourceStatusUpdateFailed, work.Kind, kLogObjRef)
+		r.recorder.Event(work, v1.EventTypeWarning, eventReasonResourceStatusUpdateFailed, messageResourceStatusUpdateFailed)
 		errs = append(errs, err)
 	} else {
-		r.recorder.Event(work, v1.EventTypeNormal, eventReasonResourceUpdateStatusSucceeded, messageResourceUpdateSucceeded)
+		r.recorder.Event(work, v1.EventTypeNormal, eventReasonResourceUpdateStatusSucceeded, messageResourceStatusUpdateSucceeded)
 	}
 
 	if len(errs) != 0 {

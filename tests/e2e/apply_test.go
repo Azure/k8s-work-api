@@ -24,7 +24,7 @@ type manifestDetails struct {
 }
 
 const (
-	eventuallyTimeout  = 10 // seconds
+	eventuallyTimeout  = 30 // seconds
 	eventuallyInterval = 1  // seconds
 )
 
