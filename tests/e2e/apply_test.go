@@ -2,12 +2,16 @@ package e2e
 
 import (
 	"context"
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/json"
 
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	utilrand "k8s.io/apimachinery/pkg/util/rand"
 
 	workapi "sigs.k8s.io/work-api/pkg/apis/v1alpha1"
@@ -92,19 +96,25 @@ var WorkCreatedContext = func(description string, manifestFiles []string) bool {
 				mDetails,
 			)
 
-			createdWork, err = createWorkResource(workObj)
+			err = createWork(workObj)
+			createdWork, err = retrieveWork(workObj.Namespace, workObj.Name)
 			Expect(err).ToNot(HaveOccurred())
 		})
 
 		AfterEach(func() {
-			err = deleteWorkResource(createdWork.Namespace, createdWork.Name)
+			err = deleteWorkResource(createdWork)
 			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("should have created: a respective AppliedWork, and the resources specified in the Work's manifests", func() {
 			By("verifying an AppliedWork was created")
 			Eventually(func() error {
-				_, err := spokeWorkClient.MulticlusterV1alpha1().AppliedWorks().Get(context.Background(), createdWork.Name, metav1.GetOptions{})
+				appliedWork := workapi.AppliedWork{}
+				err := spokeClient.Get(context.Background(), types.NamespacedName{
+					Namespace: createdWork.Namespace,
+					Name:      createdWork.Name,
+				}, &appliedWork)
+
 				return err
 			}, eventuallyTimeout, eventuallyInterval).ShouldNot(HaveOccurred())
 
@@ -142,12 +152,13 @@ var WorkCreatedWithCRDContext = func(description string, manifestFiles []string)
 				manifestDetails,
 			)
 
-			createdWork, err = createWorkResource(workObj)
+			err = createWork(workObj)
+			createdWork, err = retrieveWork(workObj.Namespace, workObj.Name)
 			Expect(err).ToNot(HaveOccurred())
 		})
 
 		AfterEach(func() {
-			err = deleteWorkResource(createdWork.Namespace, createdWork.Name)
+			err = deleteWorkResource(createdWork)
 			Expect(err).ToNot(HaveOccurred())
 		})
 
@@ -179,12 +190,13 @@ var WorkUpdateWithDependencyContext = func(description string, initialManifestFi
 				initialManifestDetails,
 			)
 
-			createdWork, err = createWorkResource(workObj)
+			err = createWork(workObj)
+			createdWork, err = retrieveWork(workObj.Namespace, workObj.Name)
 			Expect(err).ToNot(HaveOccurred())
 		})
 
 		AfterEach(func() {
-			err = deleteWorkResource(createdWork.Namespace, createdWork.Name)
+			err = deleteWorkResource(createdWork)
 			Expect(err).ToNot(HaveOccurred())
 		})
 
@@ -195,7 +207,7 @@ var WorkUpdateWithDependencyContext = func(description string, initialManifestFi
 				Expect(err).ToNot(HaveOccurred())
 
 				createdWork.Spec.Workload.Manifests = append(createdWork.Spec.Workload.Manifests, addedManifestDetails[0].Manifest, addedManifestDetails[1].Manifest)
-				createdWork, err = hubWorkClient.MulticlusterV1alpha1().Works(createdWork.Namespace).Update(context.Background(), createdWork, metav1.UpdateOptions{})
+				createdWork, err = updateWork(createdWork)
 
 				return err
 			}, eventuallyTimeout, eventuallyInterval).ShouldNot(HaveOccurred())
@@ -237,12 +249,13 @@ var WorkUpdateWithModifiedManifestContext = func(description string, manifestFil
 				manifestDetails,
 			)
 
-			createdWork, err = createWorkResource(workObj)
+			err = createWork(workObj)
+			createdWork, err = retrieveWork(workObj.Namespace, workObj.Name)
 			Expect(err).ToNot(HaveOccurred())
 		})
 
 		AfterEach(func() {
-			err = deleteWorkResource(createdWork.Namespace, createdWork.Name)
+			err = deleteWorkResource(createdWork)
 			Expect(err).ToNot(HaveOccurred())
 		})
 
@@ -262,7 +275,7 @@ var WorkUpdateWithModifiedManifestContext = func(description string, manifestFil
 				createdWork.Spec.Workload.Manifests[0].Object = obj
 				createdWork.Spec.Workload.Manifests[0].Raw = rawUpdatedManifest
 
-				createdWork, err = hubWorkClient.MulticlusterV1alpha1().Works(createdWork.Namespace).Update(context.Background(), createdWork, metav1.UpdateOptions{})
+				createdWork, err = updateWork(createdWork)
 
 				return err
 			}, eventuallyTimeout, eventuallyInterval).ShouldNot(HaveOccurred())
@@ -296,32 +309,33 @@ var WorkUpdateWithReplacedManifestsContext = func(description string, originalMa
 				originalManifestDetails,
 			)
 
-			createdWork, err = createWorkResource(workObj)
+			err = createWork(workObj)
+			createdWork, err = retrieveWork(workObj.Namespace, workObj.Name)
 			Expect(err).ToNot(HaveOccurred())
 		})
 
 		AfterEach(func() {
-			err = deleteWorkResource(createdWork.Namespace, createdWork.Name)
+			err = deleteWorkResource(createdWork)
 			Expect(err).ToNot(HaveOccurred())
 		})
 
 		It("should have deleted the original Work's resources, and created new resources with the replaced manifests", func() {
 			By("getting the respective AppliedWork")
 			Eventually(func() int {
-				appliedWork, _ = spokeWorkClient.MulticlusterV1alpha1().AppliedWorks().Get(context.Background(), createdWork.Name, metav1.GetOptions{})
+				appliedWork, _ = retrieveAppliedWork(createdWork.Name)
 
 				return len(appliedWork.Status.AppliedResources)
 			}, eventuallyTimeout, eventuallyInterval).Should(Equal(len(createdWork.Spec.Workload.Manifests)))
 
 			By("updating the Work resource with replaced manifests")
 			Eventually(func() error {
-				createdWork, err = hubWorkClient.MulticlusterV1alpha1().Works(createdWork.Namespace).Get(context.Background(), createdWork.Name, metav1.GetOptions{})
+				createdWork, err = retrieveWork(createdWork.Namespace, createdWork.Name)
 				createdWork.Spec.Workload.Manifests = nil
 				for _, mD := range replacedManifestDetails {
 					createdWork.Spec.Workload.Manifests = append(createdWork.Spec.Workload.Manifests, mD.Manifest)
 				}
 
-				createdWork, err = hubWorkClient.MulticlusterV1alpha1().Works(createdWork.Namespace).Update(context.Background(), createdWork, metav1.UpdateOptions{})
+				createdWork, err = updateWork(createdWork)
 
 				return err
 			}, eventuallyTimeout, eventuallyInterval).ShouldNot(HaveOccurred())
@@ -373,12 +387,8 @@ var WorkDeletedContext = func(description string, manifestFiles []string) bool {
 				manifestDetails,
 			)
 
-			createdWork, err = createWorkResource(workObj)
-			Expect(err).ToNot(HaveOccurred())
-		})
-
-		AfterEach(func() {
-			err = deleteWorkResource(createdWork.Namespace, createdWork.Name)
+			err = createWork(workObj)
+			createdWork, err = retrieveWork(workObj.Namespace, workObj.Name)
 			Expect(err).ToNot(HaveOccurred())
 		})
 
@@ -391,7 +401,7 @@ var WorkDeletedContext = func(description string, manifestFiles []string) bool {
 			}, eventuallyTimeout, eventuallyInterval).ShouldNot(HaveOccurred())
 
 			By("deleting the Work resource")
-			err = deleteWorkResource(createdWork.Namespace, createdWork.Name)
+			err = deleteWorkResource(createdWork)
 			Expect(err).ToNot(HaveOccurred())
 
 			By("verifying the resource was garbage collected")
@@ -419,8 +429,8 @@ func createWorkObj(workName string, workNamespace string, manifestDetails []mani
 
 	return work
 }
-func createWorkResource(work *workapi.Work) (*workapi.Work, error) {
-	return hubWorkClient.MulticlusterV1alpha1().Works(work.Namespace).Create(context.Background(), work, metav1.CreateOptions{})
+func createWork(work *workapi.Work) error {
+	return hubClient.Create(context.Background(), work)
 }
 func decodeUnstructured(manifest workapi.Manifest) (*unstructured.Unstructured, error) {
 	unstructuredObj := &unstructured.Unstructured{}
@@ -428,8 +438,8 @@ func decodeUnstructured(manifest workapi.Manifest) (*unstructured.Unstructured, 
 
 	return unstructuredObj, err
 }
-func deleteWorkResource(namespace string, name string) error {
-	return hubWorkClient.MulticlusterV1alpha1().Works(namespace).Delete(context.Background(), name, metav1.DeleteOptions{})
+func deleteWorkResource(work *workapi.Work) error {
+	return hubClient.Delete(context.Background(), work)
 }
 func generateManifestDetails(manifestFiles []string) []manifestDetails {
 	var details []manifestDetails
@@ -471,6 +481,32 @@ func generateManifestDetails(manifestFiles []string) []manifestDetails {
 
 	return details
 }
-func retrieveWork(namespace string, name string) (*workapi.Work, error) {
-	return hubWorkClient.MulticlusterV1alpha1().Works(namespace).Get(context.Background(), name, metav1.GetOptions{})
+func retrieveAppliedWork(appliedWorkName string) (*workapi.AppliedWork, error) {
+	retrievedAppliedWork := workapi.AppliedWork{}
+	err := spokeClient.Get(context.Background(), types.NamespacedName{Name: appliedWorkName}, &retrievedAppliedWork)
+	if err != nil {
+		return &retrievedAppliedWork, err
+	}
+
+	return &retrievedAppliedWork, nil
+}
+func retrieveWork(workNamespace string, workName string) (*workapi.Work, error) {
+	workRetrieved := workapi.Work{}
+	err := hubClient.Get(context.Background(), types.NamespacedName{Namespace: workNamespace, Name: workName}, &workRetrieved)
+	if err != nil {
+		return nil, err
+	}
+	return &workRetrieved, nil
+}
+func updateWork(work *workapi.Work) (*workapi.Work, error) {
+	err := hubClient.Update(context.Background(), work)
+	if err != nil {
+		return nil, err
+	}
+
+	updatedWork, err := retrieveWork(work.Namespace, work.Name)
+	if err != nil {
+		return nil, err
+	}
+	return updatedWork, err
 }
