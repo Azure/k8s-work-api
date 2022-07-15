@@ -33,14 +33,20 @@ import (
 )
 
 var _ = Describe("work reconciler", func() {
-	var resourceName string
-	var resourceNamespace string
-	var workName string
-	var workNamespace string
-	var configMapA corev1.ConfigMap
 
-	const timeout = time.Second * 30
-	const interval = time.Second * 1
+	const (
+		timeout  = time.Second * 30
+		interval = time.Second * 1
+	)
+
+	var (
+		resourceName      string
+		resourceNamespace string
+		workName          string
+		workNamespace     string
+		configMapA        corev1.ConfigMap
+		work              workv1alpha1.Work
+	)
 
 	BeforeEach(func() {
 		workName = utilrand.String(5)
@@ -53,16 +59,18 @@ var _ = Describe("work reconciler", func() {
 				Name: workNamespace,
 			},
 		}
+		By("Create a namespace for Work objects")
 		_, err := k8sClient.CoreV1().Namespaces().Create(context.Background(), wns, metav1.CreateOptions{})
-		Expect(err).ToNot(HaveOccurred())
+		Expect(err).Should(SatisfyAny(Succeed(), &utils.AlreadyExistMatcher{}))
 
 		rns := &corev1.Namespace{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: resourceNamespace,
 			},
 		}
+		By("Create a namespace for Manifest Resources")
 		_, err = k8sClient.CoreV1().Namespaces().Create(context.Background(), rns, metav1.CreateOptions{})
-		Expect(err).ToNot(HaveOccurred())
+		Expect(err).Should(SatisfyAny(Succeed(), &utils.AlreadyExistMatcher{}))
 
 		configMapA = corev1.ConfigMap{
 			TypeMeta: metav1.TypeMeta{
@@ -78,7 +86,7 @@ var _ = Describe("work reconciler", func() {
 			},
 		}
 
-		work := &workv1alpha1.Work{
+		work = workv1alpha1.Work{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      workName,
 				Namespace: workNamespace,
@@ -99,12 +107,14 @@ var _ = Describe("work reconciler", func() {
 	})
 
 	AfterEach(func() {
-		err := k8sClient.CoreV1().Namespaces().Delete(context.Background(), workNamespace, metav1.DeleteOptions{})
-		Expect(err).ToNot(HaveOccurred())
+		Expect(workClient.MulticlusterV1alpha1().Works(workNamespace).Delete(context.Background(), workName, metav1.DeleteOptions{})).Should(Succeed())
 	})
+	Context("Work Creation Process", func() {
+		It("create a new work object in the hub cluster", func() {
+			_, err := workClient.MulticlusterV1alpha1().Works(workNamespace).Create(context.Background(), &work, metav1.CreateOptions{})
+			Expect(err).ShouldNot(HaveOccurred())
 
-	Context("receives a Work to reconcile", func() {
-		It("should verify that the Work contains multicluster.x-k8s.io/work-cleanup finalizer", func() {
+			By("work object should eventually contain a finalizer.")
 			Eventually(func() bool {
 				currentWork := workv1alpha1.Work{}
 				err := workClient.Get(context.Background(), types.NamespacedName{
@@ -114,9 +124,8 @@ var _ = Describe("work reconciler", func() {
 				Expect(err).ToNot(HaveOccurred())
 				return controllerutil.ContainsFinalizer(&currentWork, workFinalizer)
 			}, timeout, interval).Should(BeTrue())
-		})
 
-		It("should have created an AppliedWork Resource", func() {
+			By("corresponding appliedWork Resource should have been created.")
 			Eventually(func() bool {
 				appliedWorkObject := workv1alpha1.AppliedWork{}
 				err := workClient.Get(context.Background(), types.NamespacedName{
@@ -126,21 +135,19 @@ var _ = Describe("work reconciler", func() {
 				if err == nil {
 					return appliedWorkObject.Spec.WorkName == workName
 				}
-				return false
+				return appliedWorkObject.Spec.WorkName == workName
 			}, timeout, interval).Should(BeTrue())
-		})
 
-		It("should have applied the resource manifest", func() {
+			By("manifests should have been applied.")
 			Eventually(func() bool {
 				resource, err := k8sClient.CoreV1().ConfigMaps(resourceNamespace).Get(context.Background(), resourceName, metav1.GetOptions{})
-				if err == nil {
-					return resource.GetName() == resourceName
+				if err != nil {
+					return false
 				}
-				return false
+				return resource.GetName() == resourceName
 			}, timeout, interval).Should(BeTrue())
-		})
 
-		It("should save the conditions for the manifest", func() {
+			By("status should have been saved for each manifests applied.")
 			Eventually(func() bool {
 				currentWork := workv1alpha1.Work{}
 				err := workClient.Get(context.Background(), types.NamespacedName{
@@ -156,9 +163,8 @@ var _ = Describe("work reconciler", func() {
 				}
 				return false
 			}, timeout, interval).Should(BeTrue())
-		})
 
-		It("should have created AppliedResourceMeta details on the AppliedWork's status", func() {
+			By("AppliedResourceMeta details should have been created on AppliedWork's status")
 			Eventually(func() bool {
 				appliedWorkObject := workv1alpha1.AppliedWork{}
 				err := workClient.Get(context.Background(), types.NamespacedName{
@@ -171,26 +177,16 @@ var _ = Describe("work reconciler", func() {
 							appliedWorkObject.Status.AppliedResources[0].Namespace == resourceNamespace
 					}
 				}
-				return false
+				return appliedWorkObject.Status.AppliedResources[0].Name == resourceName &&
+					appliedWorkObject.Status.AppliedResources[0].Namespace == resourceNamespace
 			}, timeout, interval).Should(BeTrue())
 		})
-	})
 
-	Context("updating existing Work", func() {
-		It("should update the resources", func() {
-			cm := corev1.ConfigMap{
-				TypeMeta: metav1.TypeMeta{
-					APIVersion: "v1",
-					Kind:       "ConfigMap",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      resourceName,
-					Namespace: resourceNamespace,
-				},
-				Data: map[string]string{
-					"updated_test": "updated_test",
-				},
-			}
+		Context("Work is being updated", func() {
+			It("modify a manifest, then update the work object", func() {
+				By("creating a new work object")
+				createdWork, err := workClient.MulticlusterV1alpha1().Works(workNamespace).Create(context.Background(), &work, metav1.CreateOptions{})
+				Expect(err).ShouldNot(HaveOccurred())
 
 			var err error
 			currentWork := workv1alpha1.Work{}
@@ -209,7 +205,11 @@ var _ = Describe("work reconciler", func() {
 				return workClient.Update(context.Background(), &currentWork)
 			}, timeout, interval).Should(BeNil())
 
-			By("Work status", func() {
+				By("Updating the work object")
+				_, err = workClient.MulticlusterV1alpha1().Works(workNamespace).Update(context.Background(), createdWork, metav1.UpdateOptions{})
+				Expect(err).ShouldNot(HaveOccurred())
+
+				By("Work status should be updated")
 				Eventually(func() bool {
 					currentWork := workv1alpha1.Work{}
 					err = workClient.Get(context.Background(), types.NamespacedName{
@@ -227,14 +227,14 @@ var _ = Describe("work reconciler", func() {
 
 					return false
 				}, timeout, interval).Should(BeTrue())
-			})
 
-			By("created resources", func() {
+				By("the manifest resource should be created")
 				Eventually(func() bool {
 					configMap, err := k8sClient.CoreV1().ConfigMaps(resourceNamespace).Get(context.Background(), resourceName, metav1.GetOptions{})
 					if err == nil {
 						return configMap.Data["updated_test"] == "updated_test"
 					}
+
 					return false
 				}, timeout, interval).Should(BeTrue())
 			})
