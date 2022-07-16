@@ -115,8 +115,7 @@ func (r *FinalizeWorkReconciler) garbageCollectAppliedWork(ctx context.Context, 
 		deletePolicy := metav1.DeletePropagationForeground
 		appliedWork := workv1alpha1.AppliedWork{}
 		err := r.spokeClient.Get(ctx, types.NamespacedName{
-			Namespace: work.Namespace,
-			Name:      work.Name,
+			Name: work.Name,
 		}, &appliedWork)
 		if err != nil {
 			return ctrl.Result{}, err
