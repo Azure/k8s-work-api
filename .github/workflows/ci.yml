@@ -86,7 +86,7 @@ jobs:
           files: go/src/sigs.k8s.io/work-api/cover.out
           flags: ci-tests
           name: codecov-umbrella
-          fail_ci_if_error: true
+          fail_ci_if_error: false
 
   e2e:
     name: e2e
