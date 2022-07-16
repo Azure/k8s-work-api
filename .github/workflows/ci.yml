@@ -87,6 +87,7 @@ jobs:
           flags: ci-tests
           name: codecov-umbrella
           fail_ci_if_error: true
+          threshold: 5%
 
   e2e:
     name: e2e
