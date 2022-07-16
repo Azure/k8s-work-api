@@ -65,7 +65,7 @@ var _ = Describe("Work modification", func() {
 	WorkUpdateWithReplacedManifestsContext(
 		"with all manifests replaced",
 		[]string{
-			"manifests/test-secret.yaml",
+			"manifests/test-serviceaccount.yaml",
 		},
 		[]string{
 			"manifests/test-configmap.yaml",
