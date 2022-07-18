@@ -20,7 +20,7 @@ spec:
         image: work-api-controller:latest
         imagePullPolicy: IfNotPresent
         args:
-          - "--work-namespace=fleet-system"
+          - "--work-namespace=default"
           - "--hub-kubeconfig=/spoke/hub-kubeconfig/kubeconfig"
         securityContext:
           allowPrivilegeEscalation: false
