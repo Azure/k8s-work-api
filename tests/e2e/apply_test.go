@@ -28,7 +28,7 @@ type manifestDetails struct {
 const (
 	eventuallyTimeout    = 30 // seconds
 	eventuallyInterval   = 1  // seconds
-	defaultWorkNamespace = "fleet-system"
+	defaultWorkNamespace = "default"
 )
 
 var _ = Describe("Work creation", func() {
