@@ -40,7 +40,7 @@ var _ = Describe("Work Status Reconciler", func() {
 	var workName string
 	var workNamespace string
 
-	const timeout = time.Second * 30
+	const timeout = time.Second * 60
 	const interval = time.Second * 1
 
 	BeforeEach(func() {
@@ -147,6 +147,9 @@ var _ = Describe("Work Status Reconciler", func() {
 			appliedWork := workv1alpha1.AppliedWork{}
 			Eventually(func() error {
 				err := workClient.Get(context.Background(), types.NamespacedName{Name: workName, Namespace: workNamespace}, &appliedWork)
+				if err != nil {
+					return err
+				}
 
 				appliedWork.Status.AppliedResources = []workv1alpha1.AppliedResourceMeta{}
 				err = workClient.Update(context.Background(), &appliedWork)
