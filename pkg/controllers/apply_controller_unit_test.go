@@ -164,7 +164,7 @@ func TestApplyManifest(t *testing.T) {
 			generation:   0,
 			updated:      false,
 			wantGvr:      emptyGvr,
-			wantErr:      errors.New("failed to find gvr from restmapping: test error: mapping does not exist."),
+			wantErr:      errors.New("failed to find group/version/resource from restmapping: test error: mapping does not exist."),
 		},
 		"manifest is in proper format/ should fail applyUnstructured": {
 			reconciler: ApplyWorkReconciler{
