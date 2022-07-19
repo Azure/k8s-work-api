@@ -110,7 +110,7 @@ func TestApplyManifest(t *testing.T) {
 	// DynamicClients
 	clientFailDynamicClient := fake.NewSimpleDynamicClient(runtime.NewScheme())
 	clientFailDynamicClient.PrependReactor("get", "*", func(action testingclient.Action) (handled bool, ret runtime.Object, err error) {
-		return true, nil, errors.New("Failed to apply an unstructrued object")
+		return true, nil, errors.New(utils.MessageManifestApplyFailed)
 	})
 
 	testCases := map[string]struct {
@@ -459,7 +459,7 @@ func TestReconcile(t *testing.T) {
 
 	clientFailDynamicClient := fake.NewSimpleDynamicClient(runtime.NewScheme())
 	clientFailDynamicClient.PrependReactor("get", "*", func(action testingclient.Action) (handled bool, ret runtime.Object, err error) {
-		return true, nil, errors.New("Failed to apply an unstructrued object")
+		return true, nil, errors.New(utils.MessageManifestApplyFailed)
 	})
 
 	testCases := map[string]struct {
@@ -588,7 +588,7 @@ func TestReconcile(t *testing.T) {
 				client: &test.MockClient{
 					MockGet: getMock,
 					MockStatusUpdate: func(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
-						return errors.New("update work status failed")
+						return errors.New(utils.MessageResourceStatusUpdateFailed)
 					},
 				},
 				spokeDynamicClient: clientFailDynamicClient,
