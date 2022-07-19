@@ -32,7 +32,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	workv1alpha1 "sigs.k8s.io/work-api/pkg/apis/v1alpha1"
-	"sigs.k8s.io/work-api/pkg/client/clientset/versioned"
 )
 
 const (
@@ -43,7 +42,7 @@ const (
 // FinalizeWorkReconciler reconciles a Work object for finalization
 type FinalizeWorkReconciler struct {
 	client      client.Client
-	spokeClient versioned.Interface
+	spokeClient client.Client
 	recorder    record.EventRecorder
 }
 
@@ -68,7 +67,7 @@ func (r *FinalizeWorkReconciler) Reconcile(ctx context.Context, req ctrl.Request
 
 	var appliedWork *workv1alpha1.AppliedWork
 	if controllerutil.ContainsFinalizer(work, workFinalizer) {
-		_, err = r.spokeClient.MulticlusterV1alpha1().AppliedWorks().Get(ctx, req.Name, metav1.GetOptions{})
+		err = r.spokeClient.Get(ctx, req.NamespacedName, appliedWork)
 		if err != nil {
 			if errors.IsNotFound(err) {
 				klog.ErrorS(err, messageAppliedWorkFinalizerNotFound, "AppliedWork", kLogObjRef.Name)
@@ -92,8 +91,7 @@ func (r *FinalizeWorkReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			WorkNamespace: req.Namespace,
 		},
 	}
-
-	_, err = r.spokeClient.MulticlusterV1alpha1().AppliedWorks().Create(ctx, appliedWork, metav1.CreateOptions{})
+	err = r.spokeClient.Create(ctx, appliedWork)
 	if err != nil && !errors.IsAlreadyExists(err) {
 		// if this conflicts, we'll simply try again later
 		klog.ErrorS(err, messageResourceCreateFailed, "AppliedWork", kLogObjRef.Name)
@@ -118,8 +116,15 @@ func (r *FinalizeWorkReconciler) Reconcile(ctx context.Context, req ctrl.Request
 func (r *FinalizeWorkReconciler) garbageCollectAppliedWork(ctx context.Context, work *workv1alpha1.Work) (ctrl.Result, error) {
 	if controllerutil.ContainsFinalizer(work, workFinalizer) {
 		deletePolicy := metav1.DeletePropagationForeground
-		err := r.spokeClient.MulticlusterV1alpha1().AppliedWorks().Delete(ctx, work.Name,
-			metav1.DeleteOptions{PropagationPolicy: &deletePolicy})
+		appliedWork := workv1alpha1.AppliedWork{}
+		err := r.spokeClient.Get(ctx, types.NamespacedName{
+			Name: work.Name,
+		}, &appliedWork)
+		if err != nil {
+            klog.ErrorS(err, messageResourceRetrieveFailed, "AppliedWork", work.Name)
+			return ctrl.Result{}, err
+		}
+		err = r.spokeClient.Delete(ctx, &appliedWork, &client.DeleteOptions{PropagationPolicy: &deletePolicy})
 		if err != nil {
 			klog.ErrorS(err, messageResourceDeleteFailed, "AppliedWork", work.Name)
 
