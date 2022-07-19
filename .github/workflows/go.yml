@@ -60,7 +60,6 @@ jobs:
     runs-on: ubuntu-20.04
     needs: detect-noop
     if: needs.detect-noop.outputs.noop != 'true'
-    timeout-minutes: 15
 
     steps:
       - name: Checkout
