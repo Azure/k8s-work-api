@@ -310,7 +310,7 @@ func TestApplyUnstructured(t *testing.T) {
 			},
 			workObj:    correctObj.DeepCopy(),
 			resultBool: false,
-			resultErr:  errors.New("object apps/v1, Resource=Deployment:Deployment is not owned by the work-api anymore"),
+			resultErr:  errors.New(utils.MessageResourceStateInvalid),
 		},
 		"equal spec hash of current vs work object / succeed without updates": {
 			reconciler: ApplyWorkReconciler{
