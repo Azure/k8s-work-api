@@ -32,7 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	workv1alpha1 "sigs.k8s.io/work-api/pkg/apis/v1alpha1"
-	. "sigs.k8s.io/work-api/pkg/utils"
+	"sigs.k8s.io/work-api/pkg/utils"
 )
 
 const (
@@ -74,7 +74,7 @@ func (r *FinalizeWorkReconciler) Reconcile(ctx context.Context, req ctrl.Request
 			if errors.IsNotFound(err) {
 				klog.ErrorS(err, messageAppliedWorkFinalizerNotFound, "AppliedWork", kLogObjRef.Name)
 			} else {
-				klog.ErrorS(err, MessageResourceRetrieveFailed, "AppliedWork", kLogObjRef.Name)
+				klog.ErrorS(err, utils.MessageResourceRetrieveFailed, "AppliedWork", kLogObjRef.Name)
 				return ctrl.Result{}, err
 			}
 		} else {
@@ -96,20 +96,20 @@ func (r *FinalizeWorkReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	err = r.spokeClient.Create(ctx, appliedWork)
 	if err != nil && !errors.IsAlreadyExists(err) {
 		// if this conflicts, we'll simply try again later
-		klog.ErrorS(err, MessageResourceCreateFailed, "AppliedWork", kLogObjRef.Name)
+		klog.ErrorS(err, utils.MessageResourceCreateFailed, "AppliedWork", kLogObjRef.Name)
 		return ctrl.Result{}, err
 	}
-	r.recorder.Event(appliedWork, corev1.EventTypeNormal, EventReasonAppliedWorkCreated, MessageResourceCreateSucceeded)
+	r.recorder.Event(appliedWork, corev1.EventTypeNormal, utils.EventReasonAppliedWorkCreated, utils.MessageResourceCreateSucceeded)
 
-	r.recorder.Event(work, corev1.EventTypeNormal, EventReasonAppliedWorkCreated, "AppliedWork resource was created")
+	r.recorder.Event(work, corev1.EventTypeNormal, utils.EventReasonAppliedWorkCreated, "AppliedWork resource was created")
 	work.Finalizers = append(work.Finalizers, workFinalizer)
 
 	if err = r.client.Update(ctx, work, &client.UpdateOptions{}); err == nil {
 		r.recorder.Eventf(
 			work,
 			corev1.EventTypeNormal,
-			EventReasonFinalizerAdded,
-			MessageResourceFinalizerAdded+", finalizer=%s",
+			utils.EventReasonFinalizerAdded,
+			utils.MessageResourceFinalizerAdded+", finalizer=%s",
 			workFinalizer)
 	}
 
@@ -125,20 +125,20 @@ func (r *FinalizeWorkReconciler) garbageCollectAppliedWork(ctx context.Context, 
 			Name: work.Name,
 		}, &appliedWork)
 		if err != nil {
-			klog.ErrorS(err, MessageResourceRetrieveFailed, "AppliedWork", work.Name)
+			klog.ErrorS(err, utils.MessageResourceRetrieveFailed, "AppliedWork", work.Name)
 			return ctrl.Result{}, err
 		}
 		err = r.spokeClient.Delete(ctx, &appliedWork, &client.DeleteOptions{PropagationPolicy: &deletePolicy})
 		if err != nil {
-			klog.ErrorS(err, MessageResourceDeleteFailed, "AppliedWork", work.Name)
+			klog.ErrorS(err, utils.MessageResourceDeleteFailed, "AppliedWork", work.Name)
 			return ctrl.Result{}, err
 		}
 
-		r.recorder.Eventf(work, corev1.EventTypeNormal, EventReasonAppliedWorkDeleted, MessageResourceDeleteSucceeded+", AppliedWork=%s", work.Name)
-		klog.InfoS(MessageResourceDeleteSucceeded, "AppliedWork", work.Name)
+		r.recorder.Eventf(work, corev1.EventTypeNormal, utils.EventReasonAppliedWorkDeleted, utils.MessageResourceDeleteSucceeded+", AppliedWork=%s", work.Name)
+		klog.InfoS(utils.MessageResourceDeleteSucceeded, "AppliedWork", work.Name)
 
 		controllerutil.RemoveFinalizer(work, workFinalizer)
-		r.recorder.Eventf(work, corev1.EventTypeNormal, EventReasonFinalizerRemoved, MessageResourceFinalizerRemoved+", finalizer="+workFinalizer)
+		r.recorder.Eventf(work, corev1.EventTypeNormal, utils.EventReasonFinalizerRemoved, utils.MessageResourceFinalizerRemoved+", finalizer="+workFinalizer)
 	}
 
 	return ctrl.Result{}, r.client.Update(ctx, work, &client.UpdateOptions{})

@@ -43,7 +43,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	workv1alpha1 "sigs.k8s.io/work-api/pkg/apis/v1alpha1"
-	. "sigs.k8s.io/work-api/pkg/utils"
+	"sigs.k8s.io/work-api/pkg/utils"
 )
 
 const (
@@ -92,7 +92,7 @@ func (r *ApplyWorkReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	// leave the finalizer to clean up
 	if !work.DeletionTimestamp.IsZero() {
-		klog.InfoS(MessageResourceDeleting, work.Kind, kLogObjRef)
+		klog.InfoS(utils.MessageResourceDeleting, work.Kind, kLogObjRef)
 		return ctrl.Result{}, nil
 	}
 
@@ -100,15 +100,15 @@ func (r *ApplyWorkReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	// The AppliedWork.Name shall match its respective Work resource.
 	appliedWork := &workv1alpha1.AppliedWork{}
 	if err := r.spokeClient.Get(ctx, types.NamespacedName{Name: kLogObjRef.Name}, appliedWork); err != nil {
-		klog.ErrorS(err, MessageResourceRetrieveFailed, "AppliedWork", kLogObjRef.Name)
+		klog.ErrorS(err, utils.MessageResourceRetrieveFailed, "AppliedWork", kLogObjRef.Name)
 		r.recorder.Eventf(
 			work,
 			v1.EventTypeWarning,
-			EventReasonResourceNotFound,
-			MessageResourceRetrieveFailed+", %s=%s",
+			utils.EventReasonResourceNotFound,
+			utils.MessageResourceRetrieveFailed+", %s=%s",
 			"AppliedWork", work.Name)
 
-		return ctrl.Result{}, errors.Wrap(err, fmt.Sprintf(MessageResourceRetrieveFailed+", %s=%s", "AppliedWork", work.Name))
+		return ctrl.Result{}, errors.Wrap(err, fmt.Sprintf(utils.MessageResourceRetrieveFailed+", %s=%s", "AppliedWork", work.Name))
 	}
 
 	owner := metav1.OwnerReference{
@@ -150,20 +150,20 @@ func (r *ApplyWorkReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 	err = r.client.Status().Update(ctx, work, &client.UpdateOptions{})
 	if err != nil {
-		klog.ErrorS(err, MessageResourceStatusUpdateFailed, work.Kind, kLogObjRef)
-		r.recorder.Event(work, v1.EventTypeWarning, EventReasonResourceStatusUpdateFailed, MessageResourceStatusUpdateFailed)
+		klog.ErrorS(err, utils.MessageResourceStatusUpdateFailed, work.Kind, kLogObjRef)
+		r.recorder.Event(work, v1.EventTypeWarning, utils.EventReasonResourceStatusUpdateFailed, utils.MessageResourceStatusUpdateFailed)
 		errs = append(errs, err)
 	} else {
-		r.recorder.Event(work, v1.EventTypeNormal, EventReasonResourceUpdateStatusSucceeded, MessageResourceStatusUpdateSucceeded)
+		r.recorder.Event(work, v1.EventTypeNormal, utils.EventReasonResourceUpdateStatusSucceeded, utils.MessageResourceStatusUpdateSucceeded)
 	}
 
 	if len(errs) != 0 {
-		klog.InfoS(MessageManifestApplyIncomplete, work.Kind, kLogObjRef)
+		klog.InfoS(utils.MessageManifestApplyIncomplete, work.Kind, kLogObjRef)
 		r.recorder.Event(
 			work,
 			v1.EventTypeWarning,
-			EventReasonReconcileIncomplete,
-			MessageManifestApplyIncomplete)
+			utils.EventReasonReconcileIncomplete,
+			utils.MessageManifestApplyIncomplete)
 
 		return ctrl.Result{}, utilerrors.NewAggregate(errs)
 	}
@@ -195,12 +195,12 @@ func (r *ApplyWorkReconciler) applyManifests(ctx context.Context, manifests []wo
 			if result.err == nil {
 				result.generation = obj.GetGeneration()
 				if result.updated {
-					klog.V(5).InfoS(MessageManifestApplySucceeded, "gvr", gvr, "obj", kLogObjRef, "new ObservedGeneration", result.generation)
+					klog.V(5).InfoS(utils.MessageManifestApplySucceeded, "gvr", gvr, "obj", kLogObjRef, "new ObservedGeneration", result.generation)
 				} else {
-					klog.V(8).InfoS(MessageManifestApplyUnwarranted, "gvr", gvr, "obj", kLogObjRef)
+					klog.V(8).InfoS(utils.MessageManifestApplyUnwarranted, "gvr", gvr, "obj", kLogObjRef)
 				}
 			} else {
-				klog.ErrorS(err, MessageManifestApplyFailed, "gvr", gvr, "obj", kLogObjRef)
+				klog.ErrorS(err, utils.MessageManifestApplyFailed, "gvr", gvr, "obj", kLogObjRef)
 			}
 		}
 		results = append(results, result)
@@ -244,12 +244,12 @@ func (r *ApplyWorkReconciler) applyUnstructured(
 		Get(ctx, manifestObj.GetName(), metav1.GetOptions{})
 	if apierrors.IsNotFound(err) {
 		actual, err := r.spokeDynamicClient.Resource(gvr).Namespace(manifestObj.GetNamespace()).Create(
-			ctx, manifestObj, metav1.CreateOptions{FieldManager: WorkFieldManagerName})
+			ctx, manifestObj, metav1.CreateOptions{FieldManager: utils.WorkFieldManagerName})
 		r.recorder.Event(
 			manifestObj,
 			v1.EventTypeNormal,
-			EventReasonManifestApplySucceeded,
-			MessageManifestApplySucceeded)
+			utils.EventReasonManifestApplySucceeded,
+			utils.MessageManifestApplySucceeded)
 
 		return actual, true, err
 	}
@@ -258,12 +258,12 @@ func (r *ApplyWorkReconciler) applyUnstructured(
 	}
 
 	if !hasSharedOwnerReference(curObj.GetOwnerReferences(), manifestObj.GetOwnerReferences()[0]) {
-		err = errors.New(MessageResourceStateInvalid)
-		klog.ErrorS(err, MessageResourceNotOwnedByWorkAPI, "gvr", gvr, "obj", kLogObjRef)
+		err = errors.New(utils.MessageResourceStateInvalid)
+		klog.ErrorS(err, utils.MessageResourceNotOwnedByWorkAPI, "gvr", gvr, "obj", kLogObjRef)
 		r.recorder.Event(manifestObj,
 			v1.EventTypeWarning,
-			EventReasonResourceNotOwnedByWorkAPI,
-			MessageResourceNotOwnedByWorkAPI)
+			utils.EventReasonResourceNotOwnedByWorkAPI,
+			utils.MessageResourceNotOwnedByWorkAPI)
 
 		return nil, false, err
 	}
@@ -271,7 +271,7 @@ func (r *ApplyWorkReconciler) applyUnstructured(
 	// We only try to update the object if its spec hash value has changed.
 	if manifestObj.GetAnnotations()[specHashAnnotation] != curObj.GetAnnotations()[specHashAnnotation] {
 		klog.V(5).InfoS(
-			MessageResourceSpecModified, "gvr", gvr, "obj", kLogObjRef,
+			utils.MessageResourceSpecModified, "gvr", gvr, "obj", kLogObjRef,
 			"new hash", manifestObj.GetAnnotations()[specHashAnnotation],
 			"existing hash", curObj.GetAnnotations()[specHashAnnotation])
 
@@ -281,29 +281,29 @@ func (r *ApplyWorkReconciler) applyUnstructured(
 
 		newData, err := manifestObj.MarshalJSON()
 		if err != nil {
-			klog.ErrorS(err, MessageResourceJSONMarshalFailed, "gvr", gvr, "obj", kLogObjRef)
+			klog.ErrorS(err, utils.MessageResourceJSONMarshalFailed, "gvr", gvr, "obj", kLogObjRef)
 			return nil, false, err
 		}
 		// Use sever-side apply to be safe.
 		actual, err := r.spokeDynamicClient.Resource(gvr).Namespace(manifestObj.GetNamespace()).
 			Patch(ctx, manifestObj.GetName(), types.ApplyPatchType, newData,
-				metav1.PatchOptions{Force: pointer.Bool(true), FieldManager: WorkFieldManagerName})
+				metav1.PatchOptions{Force: pointer.Bool(true), FieldManager: utils.WorkFieldManagerName})
 		if err != nil {
-			klog.ErrorS(err, MessageResourcePatchFailed, "gvr", gvr, "obj", kLogObjRef)
+			klog.ErrorS(err, utils.MessageResourcePatchFailed, "gvr", gvr, "obj", kLogObjRef)
 			r.recorder.Event(
 				manifestObj,
 				v1.EventTypeWarning,
-				EventReasonResourcePatchFailed,
-				MessageResourcePatchFailed)
+				utils.EventReasonResourcePatchFailed,
+				utils.MessageResourcePatchFailed)
 
 			return nil, false, err
 		}
-		klog.V(5).InfoS(MessageResourcePatchSucceeded, "gvr", gvr, "obj", kLogObjRef)
+		klog.V(5).InfoS(utils.MessageResourcePatchSucceeded, "gvr", gvr, "obj", kLogObjRef)
 		r.recorder.Event(
 			manifestObj,
 			v1.EventTypeNormal,
-			EventReasonResourcePatchSucceeded,
-			MessageResourcePatchSucceeded)
+			utils.EventReasonResourcePatchSucceeded,
+			utils.MessageResourcePatchSucceeded)
 
 		return actual, true, err
 	}
