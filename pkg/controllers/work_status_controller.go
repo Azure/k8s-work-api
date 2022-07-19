@@ -40,10 +40,6 @@ import (
 	"sigs.k8s.io/work-api/pkg/utils"
 )
 
-const (
-	messageWorkStatusReconcileTriggered = "Work Status controller reconcile loop triggered"
-)
-
 // WorkStatusReconciler reconciles a Work object when its status changes
 type WorkStatusReconciler struct {
 	appliedResourceTracker
@@ -66,7 +62,7 @@ func newWorkStatusReconciler(hubClient client.Client, spokeClient client.Client,
 
 // Reconcile implement the control loop logic for Work Status.
 func (r *WorkStatusReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	klog.InfoS(messageWorkStatusReconcileTriggered, "item", req.NamespacedName)
+	klog.InfoS("Work Status controller reconcile loop triggered", "item", req.NamespacedName)
 
 	work, appliedWork, err := r.fetchWorks(ctx, req.NamespacedName)
 	if err != nil {
@@ -88,6 +84,7 @@ func (r *WorkStatusReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return ctrl.Result{}, err
 	} else if len(staleRes) > 0 && err == nil {
 		// TODO: Specify which manifest was deleted.
+		klog.InfoS(utils.MessageResourceGarbageCollectionComplete, work.Kind, kLogObjRef)
 		r.recorder.Event(work, v1.EventTypeNormal, utils.EventReasonResourceGarbageCollectionComplete, utils.MessageResourceGarbageCollectionComplete)
 	}
 
@@ -95,11 +92,9 @@ func (r *WorkStatusReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	appliedWork.Status.AppliedResources = newRes
 	if err = r.spokeClient.Status().Update(ctx, appliedWork, &client.UpdateOptions{}); err != nil {
 		klog.ErrorS(err, utils.MessageResourceStatusUpdateFailed, appliedWork.Kind, appliedWork.GetName())
-		r.recorder.Event(appliedWork, v1.EventTypeWarning, utils.EventReasonResourceStatusUpdateFailed, utils.MessageResourceStatusUpdateFailed)
 		return ctrl.Result{}, err
 	}
 
-	r.recorder.Event(appliedWork, v1.EventTypeNormal, utils.EventReasonResourceUpdateStatusSucceeded, utils.MessageResourceStatusUpdateSucceeded)
 	return ctrl.Result{}, nil
 }
 

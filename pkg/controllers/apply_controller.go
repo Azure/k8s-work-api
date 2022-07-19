@@ -47,8 +47,7 @@ import (
 )
 
 const (
-	messageWorkApplyReconcileTriggered = "Work apply controller reconcile loop triggered"
-	messageWorkFinalizerMissing        = "the Work resource has no finalizer yet, it will be added"
+	messageWorkFinalizerMissing = "the Work resource has no finalizer yet, it will be added"
 )
 
 // ApplyWorkReconciler reconciles a Work object
@@ -71,7 +70,7 @@ type applyResult struct {
 
 // Reconcile implement the control loop logic for Work object.
 func (r *ApplyWorkReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	klog.InfoS(messageWorkApplyReconcileTriggered, "item", req.NamespacedName)
+	klog.InfoS("Work apply controller reconcile loop triggered.", "item", req.NamespacedName)
 
 	work := &workv1alpha1.Work{}
 	err := r.client.Get(ctx, req.NamespacedName, work)
@@ -101,12 +100,6 @@ func (r *ApplyWorkReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	appliedWork := &workv1alpha1.AppliedWork{}
 	if err := r.spokeClient.Get(ctx, types.NamespacedName{Name: kLogObjRef.Name}, appliedWork); err != nil {
 		klog.ErrorS(err, utils.MessageResourceRetrieveFailed, "AppliedWork", kLogObjRef.Name)
-		r.recorder.Eventf(
-			work,
-			v1.EventTypeWarning,
-			utils.EventReasonResourceNotFound,
-			utils.MessageResourceRetrieveFailed+", %s=%s",
-			"AppliedWork", work.Name)
 
 		return ctrl.Result{}, errors.Wrap(err, fmt.Sprintf(utils.MessageResourceRetrieveFailed+", %s=%s", "AppliedWork", work.Name))
 	}
@@ -151,10 +144,9 @@ func (r *ApplyWorkReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	err = r.client.Status().Update(ctx, work, &client.UpdateOptions{})
 	if err != nil {
 		klog.ErrorS(err, utils.MessageResourceStatusUpdateFailed, work.Kind, kLogObjRef)
-		r.recorder.Event(work, v1.EventTypeWarning, utils.EventReasonResourceStatusUpdateFailed, utils.MessageResourceStatusUpdateFailed)
 		errs = append(errs, err)
 	} else {
-		r.recorder.Event(work, v1.EventTypeNormal, utils.EventReasonResourceUpdateStatusSucceeded, utils.MessageResourceStatusUpdateSucceeded)
+		klog.InfoS(utils.MessageResourceStatusUpdateSucceeded, work.Kind, kLogObjRef)
 	}
 
 	if len(errs) != 0 {
@@ -167,6 +159,12 @@ func (r *ApplyWorkReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 
 		return ctrl.Result{}, utilerrors.NewAggregate(errs)
 	}
+
+	r.recorder.Event(
+		work,
+		v1.EventTypeNormal,
+		utils.EventReasonReconcileComplete,
+		utils.MessageManifestApplyComplete)
 
 	return ctrl.Result{}, nil
 }
@@ -245,11 +243,6 @@ func (r *ApplyWorkReconciler) applyUnstructured(
 	if apierrors.IsNotFound(err) {
 		actual, err := r.spokeDynamicClient.Resource(gvr).Namespace(manifestObj.GetNamespace()).Create(
 			ctx, manifestObj, metav1.CreateOptions{FieldManager: utils.WorkFieldManagerName})
-		r.recorder.Event(
-			manifestObj,
-			v1.EventTypeNormal,
-			utils.EventReasonManifestApplySucceeded,
-			utils.MessageManifestApplySucceeded)
 
 		return actual, true, err
 	}
@@ -260,10 +253,6 @@ func (r *ApplyWorkReconciler) applyUnstructured(
 	if !hasSharedOwnerReference(curObj.GetOwnerReferences(), manifestObj.GetOwnerReferences()[0]) {
 		err = errors.New(utils.MessageResourceStateInvalid)
 		klog.ErrorS(err, utils.MessageResourceNotOwnedByWorkAPI, "gvr", gvr, "obj", kLogObjRef)
-		r.recorder.Event(manifestObj,
-			v1.EventTypeWarning,
-			utils.EventReasonResourceNotOwnedByWorkAPI,
-			utils.MessageResourceNotOwnedByWorkAPI)
 
 		return nil, false, err
 	}
@@ -290,20 +279,10 @@ func (r *ApplyWorkReconciler) applyUnstructured(
 				metav1.PatchOptions{Force: pointer.Bool(true), FieldManager: utils.WorkFieldManagerName})
 		if err != nil {
 			klog.ErrorS(err, utils.MessageResourcePatchFailed, "gvr", gvr, "obj", kLogObjRef)
-			r.recorder.Event(
-				manifestObj,
-				v1.EventTypeWarning,
-				utils.EventReasonResourcePatchFailed,
-				utils.MessageResourcePatchFailed)
 
 			return nil, false, err
 		}
 		klog.V(5).InfoS(utils.MessageResourcePatchSucceeded, "gvr", gvr, "obj", kLogObjRef)
-		r.recorder.Event(
-			manifestObj,
-			v1.EventTypeNormal,
-			utils.EventReasonResourcePatchSucceeded,
-			utils.MessageResourcePatchSucceeded)
 
 		return actual, true, err
 	}

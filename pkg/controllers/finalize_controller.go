@@ -36,7 +36,6 @@ import (
 )
 
 const (
-	messageFinalizerReconcileTriggered  = "Work finalize controller reconcile loop triggered"
 	messageAppliedWorkFinalizerNotFound = "AppliedWork finalizer object does not exist yet, it will be created"
 )
 
@@ -49,7 +48,7 @@ type FinalizeWorkReconciler struct {
 
 // Reconcile implement the control loop logic for finalizing Work object.
 func (r *FinalizeWorkReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	klog.InfoS(messageFinalizerReconcileTriggered, "item", req.NamespacedName)
+	klog.InfoS("Work finalize controller reconcile loop triggered.", "item", req.NamespacedName)
 
 	work := &workv1alpha1.Work{}
 	err := r.client.Get(ctx, types.NamespacedName{Name: req.Name, Namespace: req.Namespace}, work)
