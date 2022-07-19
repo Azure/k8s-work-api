@@ -178,7 +178,7 @@ func TestApplyManifest(t *testing.T) {
 			generation:   0,
 			updated:      false,
 			wantGvr:      expectedGvr,
-			wantErr:      errors.New("Failed to apply an unstructrued object"),
+			wantErr:      errors.New(utils.MessageManifestApplyFailed),
 		},
 	}
 
@@ -560,7 +560,7 @@ func TestReconcile(t *testing.T) {
 				recorder:   utils.NewFakeRecorder(1),
 			},
 			req:     req,
-			wantErr: errors.New("failed to get the appliedWork"),
+			wantErr: errors.New(utils.MessageResourceRetrieveFailed),
 		},
 		"ApplyManifest fails": {
 			reconciler: ApplyWorkReconciler{
@@ -581,7 +581,7 @@ func TestReconcile(t *testing.T) {
 				recorder:   utils.NewFakeRecorder(2),
 			},
 			req:     req,
-			wantErr: errors.New("Failed to apply an unstructrued object"),
+			wantErr: errors.New(utils.MessageManifestApplyFailed),
 		},
 		"client update fails": {
 			reconciler: ApplyWorkReconciler{
@@ -599,7 +599,7 @@ func TestReconcile(t *testing.T) {
 				recorder:   utils.NewFakeRecorder(2),
 			},
 			req:     req,
-			wantErr: errors.New("update work status failed"),
+			wantErr: errors.New(utils.MessageResourceStatusUpdateFailed),
 		},
 		"Happy Path": {
 			reconciler: ApplyWorkReconciler{
