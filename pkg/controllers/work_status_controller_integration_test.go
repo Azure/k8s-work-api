@@ -147,7 +147,6 @@ var _ = Describe("Work Status Reconciler", func() {
 			appliedWork := workv1alpha1.AppliedWork{}
 			Eventually(func() error {
 				err := workClient.Get(context.Background(), types.NamespacedName{Name: workName, Namespace: workNamespace}, &appliedWork)
-				Expect(err).ToNot(HaveOccurred())
 
 				appliedWork.Status.AppliedResources = []workv1alpha1.AppliedResourceMeta{}
 				err = workClient.Update(context.Background(), &appliedWork)
