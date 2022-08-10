@@ -119,7 +119,6 @@ func (r *ApplyWorkReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 	appliedWork := &workv1alpha1.AppliedWork{}
 	if err := r.spokeClient.Get(ctx, types.NamespacedName{Name: kLogObjRef.Name}, appliedWork); err != nil {
 		klog.ErrorS(err, utils.MessageResourceRetrieveFailed, "AppliedWork", kLogObjRef.Name)
-		meta.SetStatusCondition(&work.Status.Conditions, generateWorkAvailableStatusCondition(metav1.ConditionFalse, work.Generation))
 
 		return ctrl.Result{}, errors.Wrap(err, fmt.Sprintf(utils.MessageResourceRetrieveFailed+", %s=%s", "AppliedWork", work.Name))
 	}
@@ -131,7 +130,9 @@ func (r *ApplyWorkReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		UID:        appliedWork.GetUID(),
 	}
 
-	results := r.applyManifests(ctx, work.Spec.Workload.Manifests, owner)
+	// Since work is going through possible reapply, set all manifest conditions to have progressing as true
+
+	results := r.applyManifests(ctx, work.Spec.Workload.Manifests, work.Status.ManifestConditions, owner)
 	var errs []error
 
 	// Update manifestCondition based on the results.
@@ -141,27 +142,30 @@ func (r *ApplyWorkReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 			errs = append(errs, result.err)
 		}
 
-		appliedCondition := buildAppliedStatusCondition(result.err, result.updated, result.generation)
+		appliedCondition := buildStatusManifestCondition(result.err, result.updated, result.generation)
 		manifestCondition := workv1alpha1.ManifestCondition{
 			Identifier: result.identifier,
-			Conditions: []metav1.Condition{appliedCondition},
+			Conditions: appliedCondition,
 		}
 
 		foundmanifestCondition := findManifestConditionByIdentifier(result.identifier, work.Status.ManifestConditions)
 		if foundmanifestCondition != nil {
-			manifestCondition.Conditions = foundmanifestCondition.Conditions
-			meta.SetStatusCondition(&manifestCondition.Conditions, appliedCondition)
+			for _, cond := range manifestCondition.Conditions {
+				if !meta.IsStatusConditionPresentAndEqual(foundmanifestCondition.Conditions, cond.Type, cond.Status) {
+					newCondition := meta.FindStatusCondition(foundmanifestCondition.Conditions, cond.Type)
+					meta.SetStatusCondition(&manifestCondition.Conditions, *newCondition)
+				}
+			}
 		}
+		setDegradedCondition(manifestCondition.Conditions)
+
 		manifestConditions = append(manifestConditions, manifestCondition)
 	}
 
 	work.Status.ManifestConditions = manifestConditions
 
-	workCond := generateWorkAppliedStatusCondition(manifestConditions, work.Generation)
-	work.Status.Conditions = []metav1.Condition{workCond}
-
-	//Update available status condition of work
-	meta.SetStatusCondition(&work.Status.Conditions, generateWorkAvailableStatusCondition(workCond.Status, work.Generation))
+	setWorkStatusCondition(work.Status.Conditions, manifestConditions, work.Generation)
+	setDegradedCondition(work.Status.Conditions)
 
 	err = r.client.Status().Update(ctx, work, &client.UpdateOptions{})
 	if err != nil {
@@ -192,7 +196,7 @@ func (r *ApplyWorkReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 }
 
 // applyManifests processes a given set of Manifests by: setting ownership, validating the manifest, and passing it on for application to the cluster.
-func (r *ApplyWorkReconciler) applyManifests(ctx context.Context, manifests []workv1alpha1.Manifest, owner metav1.OwnerReference) []applyResult {
+func (r *ApplyWorkReconciler) applyManifests(ctx context.Context, manifests []workv1alpha1.Manifest, conditions []workv1alpha1.ManifestCondition, owner metav1.OwnerReference) []applyResult {
 	var results []applyResult
 
 	for index, manifest := range manifests {
@@ -211,7 +215,16 @@ func (r *ApplyWorkReconciler) applyManifests(ctx context.Context, manifests []wo
 			}
 			// TODO: add webhooks to block any manifest that has owner reference
 			rawObj.SetOwnerReferences([]metav1.OwnerReference{owner})
-			obj, result.updated, result.err = r.applyUnstructured(ctx, gvr, rawObj)
+
+			var manifestCondition []metav1.Condition
+			for _, mcond := range conditions {
+				if mcond.Identifier == result.identifier {
+					manifestCondition = mcond.Conditions
+				} else {
+					manifestCondition = []metav1.Condition{}
+				}
+			}
+			obj, result.updated, result.err = r.applyUnstructured(ctx, gvr, rawObj, manifestCondition)
 			if result.err == nil {
 				result.generation = obj.GetGeneration()
 				if result.updated {
@@ -248,7 +261,8 @@ func (r *ApplyWorkReconciler) decodeManifest(manifest workv1alpha1.Manifest) (sc
 func (r *ApplyWorkReconciler) applyUnstructured(
 	ctx context.Context,
 	gvr schema.GroupVersionResource,
-	manifestObj *unstructured.Unstructured) (*unstructured.Unstructured, bool, error) {
+	manifestObj *unstructured.Unstructured,
+	manifestCondition []metav1.Condition) (*unstructured.Unstructured, bool, error) {
 	kLogObjRef := klog.ObjectRef{
 		Name:      manifestObj.GetName(),
 		Namespace: manifestObj.GetName(),
@@ -263,6 +277,8 @@ func (r *ApplyWorkReconciler) applyUnstructured(
 		Namespace(manifestObj.GetNamespace()).
 		Get(ctx, manifestObj.GetName(), metav1.GetOptions{})
 	if apierrors.IsNotFound(err) {
+		setToProcessing(manifestCondition)
+
 		actual, err := r.spokeDynamicClient.Resource(gvr).Namespace(manifestObj.GetNamespace()).Create(
 			ctx, manifestObj, metav1.CreateOptions{FieldManager: utils.WorkFieldManagerName})
 
@@ -285,6 +301,8 @@ func (r *ApplyWorkReconciler) applyUnstructured(
 			utils.MessageResourceSpecModified, "gvr", gvr, "obj", kLogObjRef,
 			"new hash", manifestObj.GetAnnotations()[specHashAnnotation],
 			"existing hash", curObj.GetAnnotations()[specHashAnnotation])
+
+		setToProcessing(manifestCondition)
 
 		manifestObj.SetAnnotations(mergeMapOverrideWithDst(curObj.GetAnnotations(), manifestObj.GetAnnotations()))
 		manifestObj.SetLabels(mergeMapOverrideWithDst(curObj.GetLabels(), manifestObj.GetLabels()))
@@ -438,81 +456,150 @@ func buildResourceIdentifier(index int, object *unstructured.Unstructured, gvr s
 	return identifier
 }
 
-func buildAppliedStatusCondition(err error, updated bool, observedGeneration int64) metav1.Condition {
+func buildStatusManifestCondition(err error, updated bool, observedGeneration int64) []metav1.Condition {
+	var appliedStatus metav1.ConditionStatus
+	var progressStatus metav1.ConditionStatus
+	var availableStatus metav1.ConditionStatus
+	var reason string
+	var message string
 	if err != nil {
-		return metav1.Condition{
-			Type:               ConditionTypeApplied,
-			Status:             metav1.ConditionFalse,
-			LastTransitionTime: metav1.Now(),
-			Reason:             "appliedManifestFailed",
-			Message:            fmt.Sprintf("Failed to apply manifest: %v", err),
-		}
+		appliedStatus = metav1.ConditionFalse
+		progressStatus = metav1.ConditionTrue
+		availableStatus = metav1.ConditionFalse
+		reason = "appliedManifestFailed"
+		message = fmt.Sprintf("Failed to apply manifest: %v", err)
 	}
 
 	if updated {
-		return metav1.Condition{
-			Type:               ConditionTypeApplied,
-			Status:             metav1.ConditionTrue,
-			LastTransitionTime: metav1.Now(),
-			ObservedGeneration: observedGeneration,
-			Reason:             "appliedManifestUpdated",
-			Message:            "appliedManifest updated",
-		}
+		appliedStatus = metav1.ConditionTrue
+		progressStatus = metav1.ConditionFalse
+		availableStatus = metav1.ConditionTrue
+		reason = "appliedManifestUpdated"
+		message = "appliedManifest updated"
+	} else {
+		appliedStatus = metav1.ConditionTrue
+		progressStatus = metav1.ConditionFalse
+		availableStatus = metav1.ConditionTrue
+		reason = "appliedManifestComplete"
+		message = "appliedManifest updated"
 	}
-	return metav1.Condition{
-		Type:               ConditionTypeApplied,
-		Status:             metav1.ConditionTrue,
-		LastTransitionTime: metav1.Now(),
-		ObservedGeneration: observedGeneration,
-		Reason:             "appliedManifestComplete",
-		Message:            "Apply manifest complete",
+
+	return []metav1.Condition{
+		{
+			Type:               ConditionTypeApplied,
+			Status:             appliedStatus,
+			LastTransitionTime: metav1.Now(),
+			Reason:             reason,
+			Message:            message,
+			ObservedGeneration: observedGeneration,
+		},
+		{
+			Type:               ConditionTypeProgressing,
+			Status:             progressStatus,
+			LastTransitionTime: metav1.Now(),
+			Reason:             reason,
+			Message:            message,
+		},
+		{
+			Type:               ConditionTypeAvailable,
+			Status:             availableStatus,
+			LastTransitionTime: metav1.Now(),
+			Reason:             reason,
+			Message:            message,
+		},
 	}
 }
 
-// generateWorkAppliedStatusCondition generate appied status condition for work.
-// If one of the manifests is applied failed on the spoke, the applied status condition of the work is false.
-func generateWorkAppliedStatusCondition(manifestConditions []workv1alpha1.ManifestCondition, observedGeneration int64) metav1.Condition {
+// setWorkStatusCondition sets the status condition based on the manifests.
+// If one of the manifests has failed applying, applied status will be false, progress will be true, Available will be false.
+func setWorkStatusCondition(workCondition []metav1.Condition, manifestConditions []workv1alpha1.ManifestCondition, observedGeneration int64) {
 	for _, manifestCond := range manifestConditions {
 		if meta.IsStatusConditionFalse(manifestCond.Conditions, ConditionTypeApplied) {
-			return metav1.Condition{
+			meta.SetStatusCondition(&workCondition, metav1.Condition{
 				Type:               ConditionTypeApplied,
 				Status:             metav1.ConditionFalse,
 				LastTransitionTime: metav1.Now(),
-				Reason:             "appliedWorkFailed",
+				Reason:             "applyWorkFailed",
 				Message:            "Failed to apply work",
-				ObservedGeneration: observedGeneration,
-			}
-		}
-	}
+			})
 
-	return metav1.Condition{
-		Type:               ConditionTypeApplied,
-		Status:             metav1.ConditionTrue,
-		LastTransitionTime: metav1.Now(),
-		Reason:             "appliedWorkComplete",
-		Message:            "Apply work complete",
-		ObservedGeneration: observedGeneration,
+			meta.SetStatusCondition(&workCondition, metav1.Condition{
+				Type:               ConditionTypeProgressing,
+				Status:             metav1.ConditionTrue,
+				LastTransitionTime: metav1.Now(),
+				Reason:             "applyWorkFailed",
+				Message:            "Failed to apply work",
+			})
+
+			meta.SetStatusCondition(&workCondition, metav1.Condition{
+				Type:               ConditionTypeAvailable,
+				Status:             metav1.ConditionFalse,
+				LastTransitionTime: metav1.Now(),
+				Reason:             "applyWorkFailed",
+				Message:            "Failed to apply work",
+			})
+
+		} else {
+			meta.SetStatusCondition(&workCondition, metav1.Condition{
+				Type:               ConditionTypeApplied,
+				Status:             metav1.ConditionTrue,
+				LastTransitionTime: metav1.Now(),
+				Reason:             "applyWorkSuccess",
+				Message:            "Succeeded in applying all manifests",
+				ObservedGeneration: observedGeneration,
+			})
+
+			meta.SetStatusCondition(&workCondition, metav1.Condition{
+				Type:               ConditionTypeProgressing,
+				Status:             metav1.ConditionFalse,
+				LastTransitionTime: metav1.Now(),
+				Reason:             "applyWorkSuccess",
+				Message:            "Succeeded in applying all manifests",
+			})
+
+			meta.SetStatusCondition(&workCondition, metav1.Condition{
+				Type:               ConditionTypeAvailable,
+				Status:             metav1.ConditionTrue,
+				LastTransitionTime: metav1.Now(),
+				Reason:             "applyWorkSuccess",
+				Message:            "succeeded in applying all manifests",
+				ObservedGeneration: observedGeneration,
+			})
+		}
 	}
 }
 
-func generateWorkAvailableStatusCondition(status metav1.ConditionStatus, observedGeneration int64) metav1.Condition {
-	if status == metav1.ConditionTrue {
-		return metav1.Condition{
-			Type:               ConditionTypeAvailable,
-			Status:             metav1.ConditionTrue,
-			LastTransitionTime: metav1.Now(),
-			Reason:             "appliedWorkAvailable",
-			Message:            "This workload is available",
-			ObservedGeneration: observedGeneration,
-		}
-	}
-
-	return metav1.Condition{
-		Type:               ConditionTypeAvailable,
-		Status:             metav1.ConditionFalse,
+func setToProcessing(manifestConditions []metav1.Condition) {
+	// New manifest is being applied, conditions are set to progressing
+	meta.SetStatusCondition(&manifestConditions, metav1.Condition{
+		Type:               ConditionTypeProgressing,
+		Status:             metav1.ConditionTrue,
+		Reason:             "workBeingUpdated",
+		Message:            "resource manifest is in progress to be applied.",
 		LastTransitionTime: metav1.Now(),
-		Reason:             "appliedWorkFailed",
-		Message:            "This workload is not fully available",
-		ObservedGeneration: observedGeneration,
+	})
+}
+
+func setDegradedCondition(conditions []metav1.Condition) {
+	appliedCondition := meta.FindStatusCondition(conditions, ConditionTypeApplied)
+	applied := appliedCondition != nil && appliedCondition.Status == metav1.ConditionFalse && (time.Now().Sub(appliedCondition.LastTransitionTime.Time)) > DegradedTime
+	availableCondition := meta.FindStatusCondition(conditions, ConditionTypeAvailable)
+	available := availableCondition != nil && availableCondition.Status == metav1.ConditionFalse && (time.Now().Sub(availableCondition.LastTransitionTime.Time)) > DegradedTime
+	if appliedCondition == nil || availableCondition == nil || applied || available {
+		meta.SetStatusCondition(&conditions, metav1.Condition{
+			Type:               ConditionTypeDegraded,
+			Status:             metav1.ConditionTrue,
+			Reason:             "resourceDegraded",
+			Message:            "Manifest has not been available for a certain amount of time.",
+			LastTransitionTime: metav1.Now(),
+		})
+	} else if appliedCondition.Status == metav1.ConditionTrue && availableCondition.Status == metav1.ConditionTrue {
+		meta.SetStatusCondition(&conditions, metav1.Condition{
+			Type:               ConditionTypeDegraded,
+			Status:             metav1.ConditionFalse,
+			Reason:             "resourceAvailable",
+			Message:            "Resource is currently available.",
+			LastTransitionTime: metav1.Now(),
+		})
 	}
 }

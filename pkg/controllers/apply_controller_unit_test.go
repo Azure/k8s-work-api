@@ -188,7 +188,7 @@ func TestApplyManifest(t *testing.T) {
 
 	for testName, testCase := range testCases {
 		t.Run(testName, func(t *testing.T) {
-			resultList := testCase.reconciler.applyManifests(context.Background(), testCase.manifestList, ownerRef)
+			resultList := testCase.reconciler.applyManifests(context.Background(), testCase.manifestList, []workv1alpha1.ManifestCondition{}, ownerRef)
 			for _, result := range resultList {
 				if testCase.wantErr != nil {
 					assert.Containsf(t, result.err.Error(), testCase.wantErr.Error(), "Incorrect error for Testcase %s", testName)
@@ -365,7 +365,7 @@ func TestApplyUnstructured(t *testing.T) {
 
 	for testName, testCase := range testCases {
 		t.Run(testName, func(t *testing.T) {
-			applyResult, applyResultBool, err := testCase.reconciler.applyUnstructured(context.Background(), testGvr, testCase.workObj)
+			applyResult, applyResultBool, err := testCase.reconciler.applyUnstructured(context.Background(), testGvr, testCase.workObj, []metav1.Condition{})
 			assert.Equalf(t, testCase.resultBool, applyResultBool, "updated boolean not matching for Testcase %s", testName)
 			if testCase.resultErr != nil {
 				assert.Containsf(t, err.Error(), testCase.resultErr.Error(), "error not matching for Testcase %s", testName)

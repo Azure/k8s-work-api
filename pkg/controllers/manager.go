@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"os"
+	"time"
 
 	"github.com/go-logr/logr"
 	"k8s.io/client-go/dynamic"
@@ -33,8 +34,11 @@ const (
 	workFinalizer      = "multicluster.x-k8s.io/work-cleanup"
 	specHashAnnotation = "multicluster.x-k8s.io/spec-hash"
 
-	ConditionTypeApplied   = "Applied"
-	ConditionTypeAvailable = "Available"
+	ConditionTypeApplied     = "Applied"
+	ConditionTypeProgressing = "Progressing"
+	ConditionTypeAvailable   = "Available"
+	ConditionTypeDegraded    = "Degraded"
+	DegradedTime             = 5 * time.Minute
 
 	// number of concurrent reconcile loop for work
 	maxWorkConcurrency = 5

@@ -160,6 +160,16 @@ func (r *WorkStatusReconciler) calculateNewAppliedWork(work *workapi.Work, appli
 				newRes = append(newRes, workapi.AppliedResourceMeta{
 					ResourceIdentifier: manifestCond.Identifier,
 				})
+
+				// The resource is being added, set the condition Progressing to true.
+				meta.SetStatusCondition(&manifestCond.Conditions,
+					metav1.Condition{
+						Type:               ConditionTypeProgressing,
+						Status:             metav1.ConditionTrue,
+						LastTransitionTime: metav1.Now(),
+						Reason:             "workloadBeingModified",
+						Message:            "Work Manifest is being applied",
+					})
 			}
 		}
 	}
