@@ -195,6 +195,7 @@ func isSameResource(appliedMeta workapi.AppliedResourceMeta, resourceId workapi.
 
 func (r *WorkStatusReconciler) Join() {
 	r.Joined = true
+	klog.InfoS("work status controller reconciler has started.")
 }
 
 // SetupWithManager wires up the controller.

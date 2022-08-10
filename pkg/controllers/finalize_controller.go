@@ -162,6 +162,7 @@ func (r *FinalizeWorkReconciler) garbageCollectAppliedWork(ctx context.Context, 
 
 func (r *FinalizeWorkReconciler) Join() {
 	r.Joined = true
+	klog.InfoS("finalize work controller reconciler has started.")
 }
 
 // SetupWithManager wires up the controller.

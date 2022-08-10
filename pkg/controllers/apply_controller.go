@@ -324,6 +324,7 @@ func (r *ApplyWorkReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 func (r *ApplyWorkReconciler) Join() {
 	r.Joined = true
+	klog.InfoS("apply work controller reconciler has started.")
 }
 
 // Generates a hash of the spec annotation from an unstructured object.
