@@ -160,6 +160,10 @@ func (r *FinalizeWorkReconciler) garbageCollectAppliedWork(ctx context.Context, 
 	return ctrl.Result{}, r.client.Update(ctx, work, &client.UpdateOptions{})
 }
 
+func (r *FinalizeWorkReconciler) Join() {
+	r.Joined = true
+}
+
 // SetupWithManager wires up the controller.
 func (r *FinalizeWorkReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).For(&workv1alpha1.Work{},

@@ -322,6 +322,10 @@ func (r *ApplyWorkReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
+func (r *ApplyWorkReconciler) Join() {
+	r.Joined = true
+}
+
 // Generates a hash of the spec annotation from an unstructured object.
 func generateSpecHash(obj *unstructured.Unstructured) (string, error) {
 	data := obj.DeepCopy().Object

@@ -193,6 +193,10 @@ func isSameResource(appliedMeta workapi.AppliedResourceMeta, resourceId workapi.
 		appliedMeta.Name == resourceId.Name
 }
 
+func (r *WorkStatusReconciler) Join() {
+	r.Joined = true
+}
+
 // SetupWithManager wires up the controller.
 func (r *WorkStatusReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
