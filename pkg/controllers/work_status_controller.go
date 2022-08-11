@@ -34,7 +34,9 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 	"time"
 
 	workapi "sigs.k8s.io/work-api/pkg/apis/v1alpha1"
@@ -47,9 +49,10 @@ type WorkStatusReconciler struct {
 	recorder    record.EventRecorder
 	concurrency int
 	Joined      bool
+	cancel      context.CancelFunc
 }
 
-func NewWorkStatusReconciler(hubClient client.Client, spokeDynamicClient dynamic.Interface, spokeClient client.Client, restMapper meta.RESTMapper, recorder record.EventRecorder, concurrency int, joined bool) *WorkStatusReconciler {
+func NewWorkStatusReconciler(hubClient client.Client, spokeDynamicClient dynamic.Interface, spokeClient client.Client, restMapper meta.RESTMapper, recorder record.EventRecorder, concurrency int, joined bool, cancel context.CancelFunc) *WorkStatusReconciler {
 	return &WorkStatusReconciler{
 		appliedResourceTracker: appliedResourceTracker{
 			hubClient:          hubClient,
@@ -60,6 +63,7 @@ func NewWorkStatusReconciler(hubClient client.Client, spokeDynamicClient dynamic
 		recorder:    recorder,
 		concurrency: concurrency,
 		Joined:      joined,
+		cancel:      cancel,
 	}
 }
 
@@ -193,9 +197,40 @@ func isSameResource(appliedMeta workapi.AppliedResourceMeta, resourceId workapi.
 		appliedMeta.Name == resourceId.Name
 }
 
-func (r *WorkStatusReconciler) Join() {
+func (r *WorkStatusReconciler) Start() {
 	r.Joined = true
 	klog.InfoS("work status controller reconciler has started.")
+}
+
+func (r *WorkStatusReconciler) Stop() {
+	r.cancel()
+	klog.InfoS("work status controller reconciler has stopped.")
+}
+
+// SetupUnmanagedController sets up an unmanaged controller
+func (r *WorkStatusReconciler) SetupUnmanagedController(mgr ctrl.Manager) error {
+	r.recorder = mgr.GetEventRecorderFor("WorkStatusController")
+	c, err := controller.NewUnmanaged("work status controller", mgr, controller.Options{Reconciler: r, RecoverPanic: true, MaxConcurrentReconciles: r.concurrency})
+	if err != nil {
+		klog.ErrorS(err, "unable to create work status controller")
+		return err
+	}
+
+	if err := c.Watch(&source.Kind{Type: &workapi.Work{}}, &handler.EnqueueRequestForObject{}, UpdateOnlyPredicate{}, predicate.ResourceVersionChangedPredicate{}); err != nil {
+		klog.ErrorS(err, "unable to watch work")
+		return err
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	go func() {
+		<-mgr.Elected()
+		if err := c.Start(ctx); err != nil {
+			klog.ErrorS(err, "cannot run work status controller")
+		}
+	}()
+	r.cancel = cancel
+	return nil
 }
 
 // SetupWithManager wires up the controller.
