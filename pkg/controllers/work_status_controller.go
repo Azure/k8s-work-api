@@ -52,7 +52,7 @@ type WorkStatusReconciler struct {
 	cancel      context.CancelFunc
 }
 
-func NewWorkStatusReconciler(hubClient client.Client, spokeDynamicClient dynamic.Interface, spokeClient client.Client, restMapper meta.RESTMapper, recorder record.EventRecorder, concurrency int, joined bool, cancel context.CancelFunc) *WorkStatusReconciler {
+func NewWorkStatusReconciler(hubClient client.Client, spokeDynamicClient dynamic.Interface, spokeClient client.Client, restMapper meta.RESTMapper, recorder record.EventRecorder, concurrency int, joined bool) *WorkStatusReconciler {
 	return &WorkStatusReconciler{
 		appliedResourceTracker: appliedResourceTracker{
 			hubClient:          hubClient,
@@ -63,7 +63,6 @@ func NewWorkStatusReconciler(hubClient client.Client, spokeDynamicClient dynamic
 		recorder:    recorder,
 		concurrency: concurrency,
 		Joined:      joined,
-		cancel:      cancel,
 	}
 }
 

@@ -53,13 +53,12 @@ type FinalizeWorkReconciler struct {
 	cancel      context.CancelFunc
 }
 
-func NewFinalizeWorkReconciler(hubClient client.Client, spokeClient client.Client, recorder record.EventRecorder, joined bool, cancel context.CancelFunc) *FinalizeWorkReconciler {
+func NewFinalizeWorkReconciler(hubClient client.Client, spokeClient client.Client, recorder record.EventRecorder, joined bool) *FinalizeWorkReconciler {
 	return &FinalizeWorkReconciler{
 		client:      hubClient,
 		spokeClient: spokeClient,
 		recorder:    recorder,
 		Joined:      joined,
-		cancel:      cancel,
 	}
 }
 
