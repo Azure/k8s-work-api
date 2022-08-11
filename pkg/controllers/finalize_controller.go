@@ -19,6 +19,9 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -47,6 +50,7 @@ type FinalizeWorkReconciler struct {
 	spokeClient client.Client
 	recorder    record.EventRecorder
 	Joined      bool
+	cancel      context.CancelFunc
 }
 
 func NewFinalizeWorkReconciler(hubClient client.Client, spokeClient client.Client, recorder record.EventRecorder, joined bool) *FinalizeWorkReconciler {
@@ -158,6 +162,42 @@ func (r *FinalizeWorkReconciler) garbageCollectAppliedWork(ctx context.Context, 
 	}
 
 	return ctrl.Result{}, r.client.Update(ctx, work, &client.UpdateOptions{})
+}
+
+func (r *FinalizeWorkReconciler) Start() {
+	r.Joined = true
+	klog.InfoS("finalize work controller reconciler has started.")
+}
+
+func (r *FinalizeWorkReconciler) Stop() {
+	r.cancel()
+	klog.InfoS("finalize work controller reconciler has stopped.")
+}
+
+// SetupUnmanagedController sets up an unmanaged controller
+func (r *FinalizeWorkReconciler) SetupUnmanagedController(mgr ctrl.Manager) error {
+	r.recorder = mgr.GetEventRecorderFor("FinalizeWorkController")
+	c, err := controller.NewUnmanaged("finalize work controller", mgr, controller.Options{Reconciler: r, RecoverPanic: true})
+	if err != nil {
+		klog.ErrorS(err, "unable to create finalize work controller")
+		return err
+	}
+
+	if err := c.Watch(&source.Kind{Type: &workv1alpha1.Work{}}, &handler.EnqueueRequestForObject{}, predicate.GenerationChangedPredicate{}); err != nil {
+		klog.ErrorS(err, "unable to watch work")
+		return err
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	go func() {
+		<-mgr.Elected()
+		if err := c.Start(ctx); err != nil {
+			klog.ErrorS(err, "cannot run finalize work controller")
+		}
+	}()
+	r.cancel = cancel
+	return nil
 }
 
 // SetupWithManager wires up the controller.

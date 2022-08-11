@@ -21,6 +21,8 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"sigs.k8s.io/controller-runtime/pkg/handler"
+	"sigs.k8s.io/controller-runtime/pkg/source"
 	"time"
 
 	"github.com/pkg/errors"
@@ -60,6 +62,7 @@ type ApplyWorkReconciler struct {
 	recorder           record.EventRecorder
 	concurrency        int
 	Joined             bool
+	cancel             context.CancelFunc
 }
 
 func NewApplyWorkReconciler(hubClient client.Client, spokeDynamicClient dynamic.Interface, spokeClient client.Client, restMapper meta.RESTMapper, recorder record.EventRecorder, concurrency int, joined bool) *ApplyWorkReconciler {
@@ -312,6 +315,32 @@ func (r *ApplyWorkReconciler) applyUnstructured(
 	return curObj, false, nil
 }
 
+// SetupUnmanagedController sets up an unmanaged controller
+func (r *ApplyWorkReconciler) SetupUnmanagedController(mgr ctrl.Manager) error {
+	r.recorder = mgr.GetEventRecorderFor("ApplyWorkController")
+	c, err := controller.NewUnmanaged("apply work controller", mgr, controller.Options{Reconciler: r, RecoverPanic: true, MaxConcurrentReconciles: r.concurrency})
+	if err != nil {
+		klog.ErrorS(err, "unable to create apply work controller")
+		return err
+	}
+
+	if err := c.Watch(&source.Kind{Type: &workv1alpha1.Work{}}, &handler.EnqueueRequestForObject{}, predicate.ResourceVersionChangedPredicate{}); err != nil {
+		klog.ErrorS(err, "unable to watch work")
+		return err
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	go func() {
+		<-mgr.Elected()
+		if err := c.Start(ctx); err != nil {
+			klog.ErrorS(err, "cannot run apply work controller")
+		}
+	}()
+	r.cancel = cancel
+	return nil
+}
+
 // SetupWithManager wires up the controller.
 func (r *ApplyWorkReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
@@ -320,6 +349,16 @@ func (r *ApplyWorkReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		}).
 		For(&workv1alpha1.Work{}, builder.WithPredicates(predicate.ResourceVersionChangedPredicate{})).
 		Complete(r)
+}
+
+func (r *ApplyWorkReconciler) Start() {
+	r.Joined = true
+	klog.InfoS("apply work controller reconciler has started.")
+}
+
+func (r *ApplyWorkReconciler) Stop() {
+	r.cancel()
+	klog.InfoS("apply work controller reconciler has stopped.")
 }
 
 // Generates a hash of the spec annotation from an unstructured object.
