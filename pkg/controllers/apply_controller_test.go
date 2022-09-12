@@ -363,7 +363,7 @@ func TestApplyUnstructured(t *testing.T) {
 			},
 			workObj:        correctObj.DeepCopy(),
 			resultSpecHash: correctSpecHash,
-			resultBool:     true,
+			resultBool:     false,
 			resultErr:      nil,
 		},
 		"test creation succeeds when the object has a generated name": {
@@ -376,7 +376,7 @@ func TestApplyUnstructured(t *testing.T) {
 			},
 			workObj:        generatedSpecObj.DeepCopy(),
 			resultSpecHash: generatedSpecHash,
-			resultBool:     true,
+			resultBool:     false,
 			resultErr:      nil,
 		},
 		"client error looking for object / fail": {
@@ -503,7 +503,7 @@ func TestApplyManifest(t *testing.T) {
 			},
 			manifestList: append([]workv1alpha1.Manifest{}, testManifest),
 			generation:   0,
-			updated:      true,
+			updated:      false,
 			wantGvr:      expectedGvr,
 			wantErr:      nil,
 		},

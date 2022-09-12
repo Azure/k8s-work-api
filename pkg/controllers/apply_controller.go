@@ -323,7 +323,7 @@ func (r *ApplyWorkReconciler) applyUnstructured(ctx context.Context, gvr schema.
 			ctx, manifestObj, metav1.CreateOptions{FieldManager: workFieldManagerName})
 		if err == nil {
 			klog.V(4).InfoS("successfully created the manifest", "gvr", gvr, "manifest", manifestRef)
-			return actual, true, nil
+			return actual, false, nil
 		}
 		return nil, false, err
 	}
