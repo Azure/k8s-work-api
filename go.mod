@@ -3,7 +3,7 @@ module sigs.k8s.io/work-api
 go 1.17
 
 require (
-	github.com/crossplane/crossplane-runtime v0.16.0
+	github.com/crossplane/crossplane-runtime v0.16.1
 	github.com/go-logr/logr v1.2.0
 	github.com/google/go-cmp v0.5.6
 	github.com/onsi/ginkgo v1.16.5
