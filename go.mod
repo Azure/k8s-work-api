@@ -1,6 +1,6 @@
 module sigs.k8s.io/work-api
 
-go 1.17
+go 1.20
 
 require (
 	github.com/crossplane/crossplane-runtime v0.16.0
