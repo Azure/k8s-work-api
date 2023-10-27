@@ -4,6 +4,6 @@
     "color": "EEEEEE"
   },
   "CHECKS": {
-    "prefixes": [ "[WIP] ", "feat: ", "test: ", "fix: ", "docs: ", "style: ", "interface: ", "util: ", "chore: ", "CI: ", "perf: ", "refactor: ", "revert: " ]
+    "prefixes": [ "[WIP] ", "feat: ", "test: ", "fix: ", "docs: ", "style: ", "interface: ", "util: ", "chore: ", "Chore(deps): ", "CI: ", "perf: ", "refactor: ", "revert: " ]
   }
 }
